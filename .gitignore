@@ -1,0 +1,10 @@
+data/
+__pycache__/
+.*.swp
+.ipynb_checkpoints/
+models/
+plots/
+
+lateral/runs/
+lateral/models/
+
