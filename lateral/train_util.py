@@ -173,7 +173,8 @@ class Trainer:
     #loss_func = nn.MSELoss()
     #loss_func = MTPLoss(self.model.n_paths)
     loss_func = ComboLoss(2, self.model, self.device)
-    optim = torch.optim.Adam(self.model.parameters(), lr=lr)
+    # optim = torch.optim.Adam(self.model.parameters(), lr=lr)
+    optim = torch.optim.AdamW(self.model.parameters(), lr=lr)
 
     # evaluate model
     def eval(val_losses, train=False):
@@ -185,11 +186,11 @@ class Trainer:
             # X = torch.tensor(sample_batched["image"]).float().to(self.device)
             IN_FRAMES = sample_batched["images"]
             for i in range(2):
-              IN_FRAMES[i] = torch.tensor(IN_FRAMES[i]).float().to(self.device)
-            desire = torch.tensor(sample_batched["desire"]).float().to(self.device)
+              IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
+            desire = torch.as_tensor(sample_batched["desire"]).float().to(self.device)
             #Y = torch.tensor(sample_batched["path"]).float().to(self.device)
-            Y_path = torch.tensor(sample_batched["path"]).float().to(self.device)
-            Y_cr = torch.tensor(sample_batched["crossroad"]).float().to(self.device)
+            Y_path = torch.as_tensor(sample_batched["path"]).float().to(self.device)
+            Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)
 
             # out_path, out_cr = self.model(X, desire)
             out_path, out_cr = self.model(IN_FRAMES, desire)
@@ -221,13 +222,13 @@ class Trainer:
           # X = torch.tensor(sample_batched["image"]).float().to(self.device)
           IN_FRAMES = sample_batched["images"]
           for i in range(2):
-            IN_FRAMES[i] = torch.tensor(IN_FRAMES[i]).float().to(self.device)
-          desire = torch.tensor(sample_batched["desire"]).float().to(self.device)
+            IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
+          desire = torch.as_tensor(sample_batched["desire"]).float().to(self.device)
           #Y = torch.tensor(sample_batched["path"]).float().to(self.device)
-          Y_path = torch.tensor(sample_batched["path"]).float().to(self.device)
-          Y_cr = torch.tensor(sample_batched["crossroad"]).float().to(self.device)
+          Y_path = torch.as_tensor(sample_batched["path"]).float().to(self.device)
+          Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)
 
-          optim.zero_grad()
+          optim.zero_grad(set_to_none=True)
           # out = self.model(X, desire)
           # out_path, out_cr = self.model(X, desire)
           out_path, out_cr = self.model(IN_FRAMES, desire)

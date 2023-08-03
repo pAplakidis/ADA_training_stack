@@ -5,5 +5,7 @@
 - add videos with traffic and pedestrians + more in-town driving
 - train RNN
 - add more predictions (road edges, poses)
+- add more input (checkout comma.ai's navigation)
+
 - longitudinal model
 

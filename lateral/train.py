@@ -15,10 +15,16 @@ if writer_path == None:
   writer_path = "runs/train_eval_0"
 print("[+] Tensorboard Writer path:", writer_path)
 
-BS = 12
+BS = 16
 EPOCHS = 100
-LR = 1e-2
+LR = 1e-4
+N_WORKERS = 1
 
+# TODO: write this and add collate_fn=custom_collate to loaders
+def custom_collate(batch):
+  return batch
+
+# TODO: need num_workers ~= 4 (4 * n_GPUs), but when they are > 1 we crash
 # TODO: the whole training stack is bottlenecked by the fact that we are loading from the hard-drive instead of RAM
 # so the GPU is not utilized completely
 if __name__ == "__main__":
@@ -31,13 +37,13 @@ if __name__ == "__main__":
   train_split = int(len(dataset)*0.7) # 70% training data
   val_split = int(len(dataset)*0.3)   # 30% validation data
   train_set, val_set = random_split(dataset, [train_split+1, val_split])
-  train_loader = DataLoader(train_set, batch_size=BS, shuffle=True, num_workers=0)
-  val_loader = DataLoader(val_set, batch_size=BS, shuffle=True, num_workers=0)
+  train_loader = DataLoader(train_set, batch_size=BS, shuffle=True, num_workers=N_WORKERS, pin_memory=True)
+  val_loader = DataLoader(val_set, batch_size=BS, shuffle=True, num_workers=N_WORKERS, pin_memory=True)
 
   # train model
   #model = PathPlanner()
   #model = ComboModel()
-  model = SuperComboModel(n_layers=2)
+  model = SuperComboModel(n_layers=3)
   print(model)
   trainer = Trainer(device, model, train_loader, val_loader, model_path, writer_path)
   trainer.train(epochs=EPOCHS, lr=LR)
