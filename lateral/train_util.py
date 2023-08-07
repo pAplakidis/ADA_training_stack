@@ -16,6 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import Dataset, DataLoader, random_split
+import torch.optim.lr_scheduler as lr_scheduler
 from torchvision import utils
 
 from util import *
@@ -142,11 +143,12 @@ class MultiVideoDataset(Dataset):
     desire = self.desires[capid][framenum]
     crossroad = self.crossroads[capid][framenum]
 
-    #img_tensor = torch.from_numpy(frame).float()
-    #path_tensor = torch.from_numpy(path).float()
-    #return {"image": img_tensor, "path": path_tensor}
-    # return {"image": frame, "path": path, "desire": desire, "crossroad": crossroad}
-    return {"images": self.input_frames, "path": path, "desire": desire, "crossroad": crossroad}
+    return {
+      "images": self.input_frames,
+      "path": path,
+      "desire": desire,
+      "crossroad": crossroad
+    }
 
 
 class Trainer:
@@ -175,6 +177,7 @@ class Trainer:
     loss_func = ComboLoss(2, self.model, self.device)
     # optim = torch.optim.Adam(self.model.parameters(), lr=lr)
     optim = torch.optim.AdamW(self.model.parameters(), lr=lr)
+    scheduler = lr_scheduler.ExponentialLR(optim, gamma=0.99)
 
     # evaluate model
     def eval(val_losses, train=False):
@@ -246,6 +249,7 @@ class Trainer:
         avg_epoch_loss = np.array(epoch_losses).mean()
         losses.append(avg_epoch_loss)
         print("[->] Epoch average training loss: %.4f"%(avg_epoch_loss))
+        scheduler.step()
 
         if self.early_stop:
           epoch_vlosses = eval(epoch_vlosses, train=True)

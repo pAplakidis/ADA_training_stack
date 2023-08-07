@@ -17,8 +17,9 @@ print("[+] Tensorboard Writer path:", writer_path)
 
 BS = 16
 EPOCHS = 100
-LR = 1e-4
+LR = 1e-5
 N_WORKERS = 1
+N_GRU_LAYERS = 4
 
 # TODO: write this and add collate_fn=custom_collate to loaders
 def custom_collate(batch):
@@ -43,7 +44,7 @@ if __name__ == "__main__":
   # train model
   #model = PathPlanner()
   #model = ComboModel()
-  model = SuperComboModel(n_layers=3)
+  model = SuperComboModel(n_layers=N_GRU_LAYERS)
   print(model)
   trainer = Trainer(device, model, train_loader, val_loader, model_path, writer_path)
   trainer.train(epochs=EPOCHS, lr=LR)

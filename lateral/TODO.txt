@@ -1,5 +1,5 @@
 - optimize speed using this [ https://efficientdl.com/faster-deep-learning-in-pytorch-a-guide/ ]  (DONE)
-- add learning rate scheduler
+- add learning rate scheduler (DONE)
 - lr=1e-4 more epochs (maybe add weight_decay)  (DONE)
 - if that doesn't work add more GRU layers (in general try to overfit if possible)
 
