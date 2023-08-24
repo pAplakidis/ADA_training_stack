@@ -33,37 +33,37 @@ d_H = 1080 // 2
 
 
 class PathPlannerDataset(Dataset):
-    def __init__(self, base_dir):
-      super(Dataset, self).__init__()
-      self.base_dir = base_dir
-      self.video_path = base_dir + "video.mp4"
-      self.poses_path = base_dir + "poses.npy"
-      self.framepath_path = base_dir + "frame_paths.npy"
+  def __init__(self, base_dir):
+    super(Dataset, self).__init__()
+    self.base_dir = base_dir
+    self.video_path = base_dir + "video.mp4"
+    self.poses_path = base_dir + "poses.npy"
+    self.framepath_path = base_dir + "frame_paths.npy"
 
-      # load meta-data (poses, paths, etc)
-      self.poses = np.load(self.poses_path)
-      self.frame_paths = np.load(self.framepath_path)
-      self.local_poses, self.local_path, self.local_orientations = get_relative_poses(self.poses)
-      #print(self.local_path.shape)
-      print("Frame Paths (2D):", self.frame_paths.shape)
+    # load meta-data (poses, paths, etc)
+    self.poses = np.load(self.poses_path)
+    self.frame_paths = np.load(self.framepath_path)
+    self.local_poses, self.local_path, self.local_orientations = get_relative_poses(self.poses)
+    #print(self.local_path.shape)
+    print("Frame Paths (2D):", self.frame_paths.shape)
 
-      # load video
-      self.cap = cv2.VideoCapture(self.video_path)
+    # load video
+    self.cap = cv2.VideoCapture(self.video_path)
 
-    def __len__(self):
-      return int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT)) - LOOKAHEAD
+  def __len__(self):
+    return int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT)) - LOOKAHEAD
 
-    def __getitem__(self, idx):
-      #self.cap.set(cv2.CAP_PROP_POS_FRAMES, idx-1)
-      self.cap.set(1, idx+i)
-      ret, frame = self.cap.read()
-      frame = cv2.resize(frame, (W,H))
-      frame = np.moveaxis(frame, -1, 0)
-      #return {"image": frame, "path": self.local_path[idx:LOOKAHEAD+idx]}  # TODO: use path for now, later on predict poses
-      # TODO: this is a tempfix, we need to cleanup data (either check for nan during data-collection or training)
-      if np.isnan(self.frame_paths[idx]).any():
-        self.frame_paths[idx] = np.zeros_like(self.frame_paths[idx])
-      return {"image": frame, "path": self.frame_paths[idx]}
+  def __getitem__(self, idx):
+    #self.cap.set(cv2.CAP_PROP_POS_FRAMES, idx-1)
+    self.cap.set(1, idx+i)
+    ret, frame = self.cap.read()
+    frame = cv2.resize(frame, (W,H))
+    frame = np.moveaxis(frame, -1, 0)
+    #return {"image": frame, "path": self.local_path[idx:LOOKAHEAD+idx]}  # TODO: use path for now, later on predict poses
+    # TODO: this is a tempfix, we need to cleanup data (either check for nan during data-collection or training)
+    if np.isnan(self.frame_paths[idx]).any():
+      self.frame_paths[idx] = np.zeros_like(self.frame_paths[idx])
+    return {"image": frame, "path": self.frame_paths[idx]}
 
 
 class MultiVideoDataset(Dataset):
@@ -177,7 +177,7 @@ class Trainer:
     loss_func = ComboLoss(2, self.model, self.device)
     # optim = torch.optim.Adam(self.model.parameters(), lr=lr)
     optim = torch.optim.AdamW(self.model.parameters(), lr=lr)
-    scheduler = lr_scheduler.ExponentialLR(optim, gamma=0.99)
+    # scheduler = lr_scheduler.ExponentialLR(optim, gamma=0.99)
 
     # evaluate model
     def eval(val_losses, train=False):
@@ -249,7 +249,7 @@ class Trainer:
         avg_epoch_loss = np.array(epoch_losses).mean()
         losses.append(avg_epoch_loss)
         print("[->] Epoch average training loss: %.4f"%(avg_epoch_loss))
-        scheduler.step()
+        # scheduler.step()
 
         if self.early_stop:
           epoch_vlosses = eval(epoch_vlosses, train=True)
