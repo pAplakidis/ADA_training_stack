@@ -43,10 +43,10 @@ if __name__ == "__main__":
 
   # train model
   #model = PathPlanner()
-  #model = ComboModel()
-  model = SuperComboModel(n_layers=N_GRU_LAYERS)
+  model = ComboModel()
+  # model = SuperComboModel(n_layers=N_GRU_LAYERS)
   print(model)
-  trainer = Trainer(device, model, train_loader, val_loader, model_path, writer_path)
+  trainer = Trainer(device, model, train_loader, val_loader, model_path, writer_path, use_rnn=False)
   trainer.train(epochs=EPOCHS, lr=LR)
 
   #dataset.cap.release()

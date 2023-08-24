@@ -55,7 +55,7 @@ class PathPlannerDataset(Dataset):
 
   def __getitem__(self, idx):
     #self.cap.set(cv2.CAP_PROP_POS_FRAMES, idx-1)
-    self.cap.set(1, idx+i)
+    self.cap.set(1, idx)
     ret, frame = self.cap.read()
     frame = cv2.resize(frame, (W,H))
     frame = np.moveaxis(frame, -1, 0)
@@ -67,9 +67,10 @@ class PathPlannerDataset(Dataset):
 
 
 class MultiVideoDataset(Dataset):
-  def __init__(self, base_dir):
+  def __init__(self, base_dir, multi_frames=False):
     super(Dataset, self).__init__()
     # directories
+    self.mutli_frames = multi_frames
     self.base_dir = base_dir
     self.video_paths = []
     self.framepath_paths = []
@@ -116,25 +117,35 @@ class MultiVideoDataset(Dataset):
 
   def __getitem__(self, idx):
     # get previous frame
-    if idx != 0:
-      capid, framenum = self.images[idx-1]
+    if self.mutli_frames:
+      # get current frame
+      capid, framenum = self.images[idx]
       cap = self.caps[capid]
       cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
-      ret, frame1 = cap.read()
+      _, frame = cap.read()
 
-      frame1 = cv2.resize(frame1, (W,H))
-      frame1 = np.moveaxis(frame1, -1, 0)
-      self.input_frames[0] = frame1
+      frame = cv2.resize(frame, (W,H))
+      frame = np.moveaxis(frame, -1, 0)
+    else:
+      if idx != 0:
+        capid, framenum = self.images[idx-1]
+        cap = self.caps[capid]
+        cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
+        _, frame1 = cap.read()
 
-    # get current frame
-    capid, framenum = self.images[idx]
-    cap = self.caps[capid]
-    cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
-    ret, frame2 = cap.read()
+        frame1 = cv2.resize(frame1, (W,H))
+        frame1 = np.moveaxis(frame1, -1, 0)
+        self.input_frames[0] = frame1
 
-    frame2 = cv2.resize(frame2, (W,H))
-    frame2 = np.moveaxis(frame2, -1, 0)
-    self.input_frames[1] = frame2
+      # get current frame
+      capid, framenum = self.images[idx]
+      cap = self.caps[capid]
+      cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
+      ret, frame2 = cap.read()
+
+      frame2 = cv2.resize(frame2, (W,H))
+      frame2 = np.moveaxis(frame2, -1, 0)
+      self.input_frames[1] = frame2
 
 
     path = self.frame_paths[capid][framenum]
@@ -143,16 +154,25 @@ class MultiVideoDataset(Dataset):
     desire = self.desires[capid][framenum]
     crossroad = self.crossroads[capid][framenum]
 
-    return {
-      "images": self.input_frames,
-      "path": path,
-      "desire": desire,
-      "crossroad": crossroad
-    }
+    if self.mutli_frames:
+      return {
+        "image": frame,
+        "path": path,
+        "desire": desire,
+        "crossroad": crossroad
+      }
+    else:
+      return {
+        "images": self.input_frames,
+        "path": path,
+        "desire": desire,
+        "crossroad": crossroad
+      }
 
 
 class Trainer:
-  def __init__(self, device, model, train_loader, val_loader, model_path, writer_path=None, early_stop=False):
+  def __init__(self, device, model, train_loader, val_loader, model_path, writer_path=None, early_stop=False, use_rnn=False):
+    self.use_rnn = use_rnn  # switch training RNN or CNN
     self.early_stop = early_stop
     self.model_path = model_path
     if not writer_path:
@@ -186,17 +206,21 @@ class Trainer:
         try:
           self.model.eval()
           for i_batch, sample_batched in enumerate((t := tqdm(self.val_loader))):
-            # X = torch.tensor(sample_batched["image"]).float().to(self.device)
-            IN_FRAMES = sample_batched["images"]
-            for i in range(2):
-              IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
+            if self.rnn:
+              IN_FRAMES = sample_batched["images"]
+              for i in range(2):
+                IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
+            else:
+              X = torch.tensor(sample_batched["image"]).float().to(self.device)
             desire = torch.as_tensor(sample_batched["desire"]).float().to(self.device)
             #Y = torch.tensor(sample_batched["path"]).float().to(self.device)
             Y_path = torch.as_tensor(sample_batched["path"]).float().to(self.device)
             Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)
 
-            # out_path, out_cr = self.model(X, desire)
-            out_path, out_cr = self.model(IN_FRAMES, desire)
+            if self.use_rnn:
+              out_path, out_cr = self.model(IN_FRAMES, desire)
+            else:
+              out_path, out_cr = self.model(X, desire)
             #loss = loss_func(out, Y)
             loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
 
@@ -222,10 +246,12 @@ class Trainer:
         epoch_vlosses = []
 
         for i_batch, sample_batched in enumerate((t := tqdm(self.train_loader))):
-          # X = torch.tensor(sample_batched["image"]).float().to(self.device)
-          IN_FRAMES = sample_batched["images"]
-          for i in range(2):
-            IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
+          if self.use_rnn:
+            IN_FRAMES = sample_batched["images"]
+            for i in range(2):
+              IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
+          else:
+            X = torch.tensor(sample_batched["image"]).float().to(self.device)
           desire = torch.as_tensor(sample_batched["desire"]).float().to(self.device)
           #Y = torch.tensor(sample_batched["path"]).float().to(self.device)
           Y_path = torch.as_tensor(sample_batched["path"]).float().to(self.device)
@@ -233,8 +259,10 @@ class Trainer:
 
           optim.zero_grad(set_to_none=True)
           # out = self.model(X, desire)
-          # out_path, out_cr = self.model(X, desire)
-          out_path, out_cr = self.model(IN_FRAMES, desire)
+          if self.rnn:
+            out_path, out_cr = self.model(IN_FRAMES, desire)
+          else:
+            out_path, out_cr = self.model(X, desire)
           #loss = loss_func(out, Y)
           loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
 
