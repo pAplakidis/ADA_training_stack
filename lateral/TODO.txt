@@ -1,4 +1,6 @@
-- revert back and CNN and make switching seamless
+- revert back and CNN and make switching seamless (DONE)
+- fix right turns (model mostly wants to go left, needs more data)
+- make path prediction => <xy_points,prob> => <mean,std,prob>
 - more work on basic CNN (works better than RNN for now)
 
 - optimize speed using this [ https://efficientdl.com/faster-deep-learning-in-pytorch-a-guide/ ]  (DONE)
