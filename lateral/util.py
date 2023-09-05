@@ -6,6 +6,9 @@ import plotly.io as pio
 import plotly.express as px
 import plotly.graph_objects as go
 
+# net input resolution
+W = H = 224
+
 IMG_WIDTH = 1164  # 2D camera display W
 IMG_HEIGHT = 874  # 2D camera display W
 RW = 1920//2  # 3D renderer W

@@ -1,31 +1,23 @@
 #!/usr/bin/env python3
-import os, sys
+import os
 import cv2
 import random
 import numpy as np
 from tqdm import tqdm
 from datetime import date
 
-import io
 import plotly.io as pio
 import plotly.express as px
 import plotly.graph_objects as go
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset
 import torch.optim.lr_scheduler as lr_scheduler
-from torchvision import utils
 
 from util import *
 from model import *
 from renderer import *
-
-# net input resolution
-W = 224
-H = 224
 
 # display resolution
 d_W = 1920 // 2
@@ -59,7 +51,7 @@ class PathPlannerDataset(Dataset):
     ret, frame = self.cap.read()
     frame = cv2.resize(frame, (W,H))
     frame = np.moveaxis(frame, -1, 0)
-    #return {"image": frame, "path": self.local_path[idx:LOOKAHEAD+idx]}  # TODO: use path for now, later on predict poses
+    # TODO: use path for now, later on predict poses
     # TODO: this is a tempfix, we need to cleanup data (either check for nan during data-collection or training)
     if np.isnan(self.frame_paths[idx]).any():
       self.frame_paths[idx] = np.zeros_like(self.frame_paths[idx])
@@ -99,7 +91,6 @@ class MultiVideoDataset(Dataset):
       self.desires[i] = one_hot_encode(self.desires[i])
     if self.combo:
       self.crossroads = [np.load(crds) for crds in self.crossroads_paths]
-      #self.crossroads = np.array([cr] for cr in self.crossroads)
     """
     # check length of images and paths
     print("images:")
@@ -233,9 +224,8 @@ class Trainer:
               for i in range(2):
                 IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
             else:
-              X = torch.tensor(sample_batched["image"]).float().to(self.device)
+              X = torch.as_tensor(sample_batched["image"]).float().to(self.device)
             desire = torch.as_tensor(sample_batched["desire"]).float().to(self.device)
-            #Y = torch.tensor(sample_batched["path"]).float().to(self.device)
             Y_path = torch.as_tensor(sample_batched["path"]).float().to(self.device)
             if self.combo:
               Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)
@@ -281,9 +271,8 @@ class Trainer:
             for i in range(2):
               IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
           else:
-            X = torch.tensor(sample_batched["image"]).float().to(self.device)
+            X = torch.as_tensor(sample_batched["image"]).float().to(self.device)
           desire = torch.as_tensor(sample_batched["desire"]).float().to(self.device)
-          #Y = torch.tensor(sample_batched["path"]).float().to(self.device)
           Y_path = torch.as_tensor(sample_batched["path"]).float().to(self.device)
           if self.combo:
             Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)

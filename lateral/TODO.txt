@@ -1,9 +1,10 @@
 - FIX: right turns (model mostly wants to go left, needs more data) (DONE?)
 
-- retrain PathPlanner on more epochs (maybe also with lr=1e-4)
 - train ComboModel on new data (label crossroads first)
 - evaluate after each epoch and log that
 - generalize onnx exporter for PathPlanner and SuperComboModel
+
+- retrain PathPlanner with lr=1e-4 (if 1e-3 is not good enough)
 
 - make path prediction => <xy_points,prob> => <mean,sigma,prob>
 - more work on basic CNN (works better than RNN for now)

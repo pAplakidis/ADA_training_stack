@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import os
 import torch.onnx
-from model import ComboModel, load_model
+from model import *
 
+model_names = ["PathPlanner",
+               "ComboModel",
+               "SuperCombo"]
 # TODO: add arguments
-model_name = "ComboModel"
+model_name = model_names[0]
 
 model_path = "models/" + model_name + ".pth"
 onnx_path = "models/" + model_name + ".onnx"
@@ -13,7 +16,16 @@ def export(model_path, onnx_path):
   input_names = ["road_image", "desire"]
   output_names = ["path", "crossroad"]
 
-  model = ComboModel()
+  if model_name == model_names[0]:
+    model = PathPlanner()
+  elif model_name == model_names[1]:
+    model = ComboModel()
+  elif model_name == model_names[1]:
+    model = SuperComboModel()
+  else:
+    print("Invalid model")
+    exit(0)
+    
   model.load_state_dict(torch.load(model_path))
   model.eval()
 
