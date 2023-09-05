@@ -55,7 +55,7 @@ class MTP(nn.Module):
 
 # NOTE: resolutions not divisible by 8, 16 can cause problems
 class PathPlanner(nn.Module):
-  def __init__(self, n_paths=3):
+  def __init__(self, n_paths=5):
     super(PathPlanner, self).__init__()
     self.n_paths = n_paths
     effnet = efficientnet_b2(pretrained=True)
@@ -72,7 +72,7 @@ class PathPlanner(nn.Module):
     # multimodal (multiple paths with probabilities) output (check out mixture density networks)
     # meaning output is M future paths (for now) <xi,yi> for i in range(2*H)
     # along with each path's probabilities, these probabilities are passed through a softmax layer
-    self.policy = MTP(1408, n_modes=self.n_paths)
+    self.policy = MTP(1411, n_modes=self.n_paths)
 
   def forward(self, x, desire):
     x = self.vision(x)
@@ -91,7 +91,7 @@ class PathPlanner(nn.Module):
 
 
 class ComboModel(nn.Module):
-  def __init__(self, n_paths=3):
+  def __init__(self, n_paths=5):
     super(ComboModel, self).__init__()
     self.n_paths = n_paths
     effnet = efficientnet_b2(pretrained=True)
@@ -131,7 +131,7 @@ class ComboModel(nn.Module):
 # Input: 2 consecutive frames
 # Output: trajectory and crossroad prediction
 class SuperComboModel(nn.Module):
-  def __init__(self, input_size=6, hidden_size=128, n_layers=1, n_paths=3):
+  def __init__(self, input_size=6, hidden_size=128, n_layers=1, n_paths=5):
     super(SuperComboModel, self).__init__()
     self.n_paths = n_paths
     self.input_size = input_size    # input channels (2 bgr frames -> 2*3 channels)

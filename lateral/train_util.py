@@ -67,10 +67,12 @@ class PathPlannerDataset(Dataset):
 
 
 class MultiVideoDataset(Dataset):
-  def __init__(self, base_dir, multi_frames=False):
+  def __init__(self, base_dir, multi_frames=False, combo=True):
     super(Dataset, self).__init__()
-    # directories
     self.mutli_frames = multi_frames
+    self.combo = combo
+
+    # directories
     self.base_dir = base_dir
     self.video_paths = []
     self.framepath_paths = []
@@ -85,7 +87,8 @@ class MultiVideoDataset(Dataset):
       self.video_paths.append(prefix+"video.mp4")
       self.framepath_paths.append(prefix+"frame_paths.npy")
       self.desires_paths.append(prefix+"desires.npy")
-      self.crossroads_paths.append(prefix+"crossroads.npy")
+      if self.combo:
+        self.crossroads_paths.append(prefix+"crossroads.npy")
 
     # load and index actual data
     self.caps = [cv2.VideoCapture(str(video_path)) for video_path in self.video_paths]
@@ -94,8 +97,9 @@ class MultiVideoDataset(Dataset):
     self.desires = [np.load(desires) for desires in self.desires_paths]
     for i in range(len(self.desires)):
       self.desires[i] = one_hot_encode(self.desires[i])
-    self.crossroads = [np.load(crds) for crds in self.crossroads_paths]
-    #self.crossroads = np.array([cr] for cr in self.crossroads)
+    if self.combo:
+      self.crossroads = [np.load(crds) for crds in self.crossroads_paths]
+      #self.crossroads = np.array([cr] for cr in self.crossroads)
     """
     # check length of images and paths
     print("images:")
@@ -118,15 +122,6 @@ class MultiVideoDataset(Dataset):
   def __getitem__(self, idx):
     # get previous frame
     if self.mutli_frames:
-      # get current frame
-      capid, framenum = self.images[idx]
-      cap = self.caps[capid]
-      cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
-      _, frame = cap.read()
-
-      frame = cv2.resize(frame, (W,H))
-      frame = np.moveaxis(frame, -1, 0)
-    else:
       if idx != 0:
         capid, framenum = self.images[idx-1]
         cap = self.caps[capid]
@@ -136,6 +131,15 @@ class MultiVideoDataset(Dataset):
         frame1 = cv2.resize(frame1, (W,H))
         frame1 = np.moveaxis(frame1, -1, 0)
         self.input_frames[0] = frame1
+    else:
+      # get current frame
+      capid, framenum = self.images[idx]
+      cap = self.caps[capid]
+      cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
+      _, frame = cap.read()
+
+      frame = cv2.resize(frame, (W,H))
+      frame = np.moveaxis(frame, -1, 0)
 
       # get current frame
       capid, framenum = self.images[idx]
@@ -152,28 +156,44 @@ class MultiVideoDataset(Dataset):
     if np.isnan(path).any():
       path = np.zeros_like(path)
     desire = self.desires[capid][framenum]
-    crossroad = self.crossroads[capid][framenum]
+    if self.combo:
+      crossroad = self.crossroads[capid][framenum]
 
     if self.mutli_frames:
-      return {
-        "image": frame,
-        "path": path,
-        "desire": desire,
-        "crossroad": crossroad
-      }
+      if self.combo:
+        return {
+          "images": self.input_frames,
+          "path": path,
+          "desire": desire,
+          "crossroad": crossroad
+        }
+      else:
+        return {
+          "images": self.input_frames,
+          "path": path,
+          "desire": desire,
+        }
     else:
-      return {
-        "images": self.input_frames,
-        "path": path,
-        "desire": desire,
-        "crossroad": crossroad
-      }
+      if self.combo:
+        return {
+          "image": frame,
+          "path": path,
+          "desire": desire,
+          "crossroad": crossroad
+        }
+      else:
+        return {
+          "image": frame,
+          "path": path,
+          "desire": desire,
+        }
 
 
 class Trainer:
-  def __init__(self, device, model, train_loader, val_loader, model_path, writer_path=None, early_stop=False, use_rnn=False):
+  def __init__(self, device, model, train_loader, val_loader, model_path, writer_path=None, eval_epoch=False, use_rnn=False, combo=True):
     self.use_rnn = use_rnn  # switch training RNN or CNN
-    self.early_stop = early_stop
+    self.combo = combo      # switch PathPlanner or ComboModel/multitask
+    self.eval_epoch = eval_epoch
     self.model_path = model_path
     if not writer_path:
       today = str(date.today())
@@ -193,8 +213,10 @@ class Trainer:
 
   def train(self, epochs=100, lr=1e-3):
     #loss_func = nn.MSELoss()
-    #loss_func = MTPLoss(self.model.n_paths)
-    loss_func = ComboLoss(2, self.model, self.device)
+    if self.combo:
+      loss_func = ComboLoss(2, self.model, self.device)
+    else:
+      loss_func = MTPLoss(self.model.n_paths)
     # optim = torch.optim.Adam(self.model.parameters(), lr=lr)
     optim = torch.optim.AdamW(self.model.parameters(), lr=lr)
     # scheduler = lr_scheduler.ExponentialLR(optim, gamma=0.99)
@@ -206,7 +228,7 @@ class Trainer:
         try:
           self.model.eval()
           for i_batch, sample_batched in enumerate((t := tqdm(self.val_loader))):
-            if self.rnn:
+            if self.use_rnn:
               IN_FRAMES = sample_batched["images"]
               for i in range(2):
                 IN_FRAMES[i] = torch.as_tensor(IN_FRAMES[i]).float().to(self.device)
@@ -215,17 +237,24 @@ class Trainer:
             desire = torch.as_tensor(sample_batched["desire"]).float().to(self.device)
             #Y = torch.tensor(sample_batched["path"]).float().to(self.device)
             Y_path = torch.as_tensor(sample_batched["path"]).float().to(self.device)
-            Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)
+            if self.combo:
+              Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)
 
-            if self.use_rnn:
-              out_path, out_cr = self.model(IN_FRAMES, desire)
+            if self.combo:
+              if self.use_rnn:
+                out_path, out_cr = self.model(IN_FRAMES, desire)
+              else:
+                out_path, out_cr = self.model(X, desire)
             else:
-              out_path, out_cr = self.model(X, desire)
-            #loss = loss_func(out, Y)
-            loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
+              out_path = self.model(X, desire)
+
+            if self.combo:
+              loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
+            else:
+              loss = loss_func(out_path, Y_path)
 
             if not train:
-              self.writer.add_scalar('evaluation loss', loss.item(), i_batch)
+              self.writer.add_scalar('running training evaluation loss', loss.item(), i_batch)
             val_losses.append(loss.item())
             t.set_description("Batch Loss: %.2f"%(loss.item()))
 
@@ -234,6 +263,7 @@ class Trainer:
       print("[+] Evaluation Done")
       return val_losses
 
+    # TODO: add checkpoints so that we can resume training if interrupted
     # train model
     losses = []
     vlosses = []
@@ -255,16 +285,22 @@ class Trainer:
           desire = torch.as_tensor(sample_batched["desire"]).float().to(self.device)
           #Y = torch.tensor(sample_batched["path"]).float().to(self.device)
           Y_path = torch.as_tensor(sample_batched["path"]).float().to(self.device)
-          Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)
+          if self.combo:
+            Y_cr = torch.as_tensor(sample_batched["crossroad"]).float().to(self.device)
 
           optim.zero_grad(set_to_none=True)
-          # out = self.model(X, desire)
-          if self.rnn:
-            out_path, out_cr = self.model(IN_FRAMES, desire)
+          if self.combo:
+            if self.use_rnn:
+              out_path, out_cr = self.model(IN_FRAMES, desire)
+            else:
+              out_path, out_cr = self.model(X, desire)
           else:
-            out_path, out_cr = self.model(X, desire)
-          #loss = loss_func(out, Y)
-          loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
+            out_path = self.model(X, desire)
+
+          if self.combo:
+            loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
+          else:
+            loss = loss_func(out_path, Y_path)
 
           self.writer.add_scalar("running loss", loss.item(), i_batch)
           epoch_losses.append(loss.item())
@@ -279,10 +315,12 @@ class Trainer:
         print("[->] Epoch average training loss: %.4f"%(avg_epoch_loss))
         # scheduler.step()
 
-        if self.early_stop:
+        if self.eval_epoch:
           epoch_vlosses = eval(epoch_vlosses, train=True)
           avg_epoch_vloss = np.array(epoch_vlosses).mean()
           vlosses.append(avg_epoch_vloss)
+          # TODO: plot on the same as final training losses
+          self.writer.add_scalar('epoch evaluation loss', avg_epoch_vloss, epoch)
 
     except KeyboardInterrupt:
       print("[~] Training stopped by user")
@@ -290,9 +328,8 @@ class Trainer:
     save_model(self.model_path, self.model)
 
     for idx, l in enumerate(losses):
-      self.writer.add_scalar("final training loss", l, idx)
+      self.writer.add_scalar("epoch training loss", l, idx)
 
-    # TODO: evaluate model + stats
     val_losses = []
     val_losses = eval(val_losses)
     print("Avg Eval Loss: %.4f"%(np.array(val_losses).mean()))
