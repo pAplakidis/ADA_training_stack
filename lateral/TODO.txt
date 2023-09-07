@@ -2,19 +2,18 @@
 
 - train ComboModel on new data (label crossroads first)
 - evaluate after each epoch and log that
-- generalize onnx exporter for PathPlanner and SuperComboModel
-
-- retrain PathPlanner with lr=1e-4 (if 1e-3 is not good enough)
 
 - make path prediction => <xy_points,prob> => <mean,sigma,prob>
 - more work on basic CNN (works better than RNN for now)
 
 - (optimization-optional) MultiVideoDataset: pseudo-normalize trajectory and get only 50 points from the 200 of trajectory (like ADA)
 
+- retrain PathPlanner with lr=1e-5 (if 1e-3 is not good enough) (DONE)
 - revert back and CNN and make switching seamless (DONE)
 - optimize speed using this [ https://efficientdl.com/faster-deep-learning-in-pytorch-a-guide/ ]  (DONE)
 - add learning rate scheduler (DONE)
 - lr=1e-4 more epochs (maybe add weight_decay)  (DONE)
 - if that doesn't work add more GRU layers (in general try to overfit if possible)  (DONE)
 - 5 path plans instead of 3 (DONE)
+- generalize onnx exporter for PathPlanner and SuperComboModel  (DONE)
 

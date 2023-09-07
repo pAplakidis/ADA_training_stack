@@ -208,13 +208,13 @@ class Trainer:
       loss_func = ComboLoss(2, self.model, self.device)
     else:
       loss_func = MTPLoss(self.model.n_paths)
-    # optim = torch.optim.Adam(self.model.parameters(), lr=lr)
     optim = torch.optim.AdamW(self.model.parameters(), lr=lr)
     # scheduler = lr_scheduler.ExponentialLR(optim, gamma=0.99)
 
     # evaluate model
     def eval(val_losses, train=False):
-      print("[+] Evaluating ...")
+      if not train:
+        print("[+] Evaluating ...")
       with torch.no_grad():
         try:
           self.model.eval()
@@ -244,13 +244,14 @@ class Trainer:
               loss = loss_func(out_path, Y_path)
 
             if not train:
-              self.writer.add_scalar('running training evaluation loss', loss.item(), i_batch)
+              self.writer.add_scalar('running evaluation loss', loss.item(), i_batch)
             val_losses.append(loss.item())
-            t.set_description("Batch Loss: %.2f"%(loss.item()))
+            t.set_description("Eval Batch Loss: %.2f"%(loss.item()))
 
         except KeyboardInterrupt:
           print("[~] Evaluation stopped by user")
-      print("[+] Evaluation Done")
+      if not train:
+        print("[+] Evaluation Done")
       return val_losses
 
     # TODO: add checkpoints so that we can resume training if interrupted
@@ -261,7 +262,7 @@ class Trainer:
       print("[+] Training ...")
       for epoch in range(epochs):
         self.model.train()
-        print("[=>] Epoch %d/%d"%(epoch+1, epochs))
+        print("\n[=>] Epoch %d/%d"%(epoch+1, epochs))
         epoch_losses = []
         epoch_vlosses = []
 
@@ -310,6 +311,7 @@ class Trainer:
           vlosses.append(avg_epoch_vloss)
           # TODO: plot on the same as final training losses
           self.writer.add_scalar('epoch evaluation loss', avg_epoch_vloss, epoch)
+          print("[->] Epoch average evaluation loss: %.4f"%(avg_epoch_vloss))
 
     except KeyboardInterrupt:
       print("[~] Training stopped by user")

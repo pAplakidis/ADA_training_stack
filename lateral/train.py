@@ -19,7 +19,7 @@ print("[+] Tensorboard Writer path:", writer_path)
 
 BS = 16 # max Batch Size for current models on my PC
 EPOCHS = 100
-LR = 1e-3
+LR = 1e-5
 N_WORKERS = 1
 N_GRU_LAYERS = 4
 
