@@ -1,13 +1,11 @@
 - FIX: right turns (model mostly wants to go left, needs more data) (DONE?)
 
-- train ComboModel on new data (label crossroads first)
-- evaluate after each epoch and log that
-
-- make path prediction => <xy_points,prob> => <mean,sigma,prob>
-- more work on basic CNN (works better than RNN for now)
-
+- make path prediction => <xy_points,prob> => <mean,sigma,prob> => MDN
 - (optimization-optional) MultiVideoDataset: pseudo-normalize trajectory and get only 50 points from the 200 of trajectory (like ADA)
 
+
+- train ComboModel on new data (label crossroads first) (DONE)
+- evaluate after each epoch and log that  (DONE)
 - retrain PathPlanner with lr=1e-5 (if 1e-3 is not good enough) (DONE)
 - revert back and CNN and make switching seamless (DONE)
 - optimize speed using this [ https://efficientdl.com/faster-deep-learning-in-pytorch-a-guide/ ]  (DONE)

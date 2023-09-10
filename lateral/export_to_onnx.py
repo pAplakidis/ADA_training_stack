@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
+import sys
 import os
 import torch.onnx
 from model import *
 
+"""
 model_names = ["PathPlanner",
                "ComboModel",
                "SuperCombo"]
-# TODO: add arguments
 model_name = model_names[0]
+"""
+
+model_name = sys.argv[1]
 
 model_path = "models/" + model_name + ".pth"
 onnx_path = "models/" + model_name + ".onnx"
 
 def export(model_path, onnx_path):
   input_names = ["road_image", "desire"]
-  output_names = ["path", "crossroad"]
+  output_names = ["path"]
+  #output_names = ["path", "crossroad"]
 
+  model = PathPlanner() # CHANGE THIS
+  """
   if model_name == model_names[0]:
     model = PathPlanner()
   elif model_name == model_names[1]:
@@ -25,6 +32,7 @@ def export(model_path, onnx_path):
   else:
     print("Invalid model")
     exit(0)
+  """
     
   model.load_state_dict(torch.load(model_path))
   model.eval()

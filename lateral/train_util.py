@@ -152,32 +152,33 @@ class MultiVideoDataset(Dataset):
 
     if self.mutli_frames:
       if self.combo:
-        return {
+        payload = {
           "images": self.input_frames,
           "path": path,
           "desire": desire,
           "crossroad": crossroad
         }
       else:
-        return {
+        payload = {
           "images": self.input_frames,
           "path": path,
           "desire": desire,
         }
     else:
       if self.combo:
-        return {
+        payload = {
           "image": frame,
           "path": path,
           "desire": desire,
           "crossroad": crossroad
         }
       else:
-        return {
+        payload = {
           "image": frame,
           "path": path,
           "desire": desire,
         }
+    return payload
 
 
 class Trainer:
@@ -235,12 +236,9 @@ class Trainer:
                 out_path, out_cr = self.model(IN_FRAMES, desire)
               else:
                 out_path, out_cr = self.model(X, desire)
-            else:
-              out_path = self.model(X, desire)
-
-            if self.combo:
               loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
             else:
+              out_path = self.model(X, desire)
               loss = loss_func(out_path, Y_path)
 
             if not train:
@@ -284,12 +282,9 @@ class Trainer:
               out_path, out_cr = self.model(IN_FRAMES, desire)
             else:
               out_path, out_cr = self.model(X, desire)
-          else:
-            out_path = self.model(X, desire)
-
-          if self.combo:
             loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
           else:
+            out_path = self.model(X, desire)
             loss = loss_func(out_path, Y_path)
 
           self.writer.add_scalar("running loss", loss.item(), i_batch)
