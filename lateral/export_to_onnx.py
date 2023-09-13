@@ -18,10 +18,10 @@ onnx_path = "models/" + model_name + ".onnx"
 
 def export(model_path, onnx_path):
   input_names = ["road_image", "desire"]
-  output_names = ["path"]
-  #output_names = ["path", "crossroad"]
+  #output_names = ["path"]
+  output_names = ["path", "crossroad"]
 
-  model = PathPlanner() # CHANGE THIS
+  model = ComboModel() # CHANGE THIS
   """
   if model_name == model_names[0]:
     model = PathPlanner()

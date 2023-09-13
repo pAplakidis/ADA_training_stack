@@ -35,8 +35,8 @@ if __name__ == "__main__":
   print("[+] Using device:", device)
 
   # define/select model
-  # model = PathPlanner()
-  model = ComboModel()
+  model = PathPlanner()
+  # model = ComboModel()
   # model = SuperComboModel(n_layers=N_GRU_LAYERS)
   print(model)
 

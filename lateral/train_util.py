@@ -297,6 +297,7 @@ class Trainer:
 
         avg_epoch_loss = np.array(epoch_losses).mean()
         losses.append(avg_epoch_loss)
+        self.writer.add_scalar("epoch training loss", avg_epoch_loss, epoch)
         print("[->] Epoch average training loss: %.4f"%(avg_epoch_loss))
         # scheduler.step()
 
@@ -312,9 +313,6 @@ class Trainer:
       print("[~] Training stopped by user")
     print("[+] Training Done")
     save_model(self.model_path, self.model)
-
-    for idx, l in enumerate(losses):
-      self.writer.add_scalar("epoch training loss", l, idx)
 
     val_losses = []
     val_losses = eval(val_losses)

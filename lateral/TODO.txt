@@ -1,10 +1,18 @@
-- FIX: right turns (model mostly wants to go left, needs more data) (DONE?)
+- label crossroads for highway driving data (89+)
+- test and debug MDN after studying it better first
 
-- make path prediction => <xy_points,prob> => <mean,sigma,prob> => MDN
 - (optimization-optional) MultiVideoDataset: pseudo-normalize trajectory and get only 50 points from the 200 of trajectory (like ADA)
 
+- make a release
+*merge cnn_dev with mdn_dev
+*merge master with cnn_dev
+*better README (+ docs?)
+*tidy up project
 
-- train ComboModel on new data (label crossroads first) (DONE)
+
+- make path prediction => <xy_points,prob> => <[pi,sigma,mean], pob> (MDN)  (DONE)
+- FIX: right turns, make desire more important? (model mostly wants to go left, needs more data) (DONE)
+- train ComboModel on new data  (DONE)
 - evaluate after each epoch and log that  (DONE)
 - retrain PathPlanner with lr=1e-5 (if 1e-3 is not good enough) (DONE)
 - revert back and CNN and make switching seamless (DONE)
