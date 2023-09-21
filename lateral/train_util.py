@@ -58,6 +58,45 @@ class PathPlannerDataset(Dataset):
     return {"image": frame, "path": self.frame_paths[idx]}
 
 
+# TODO: modify this (switch between single/multi-frame)
+# TODO: switch crossroads as well (maybe make multiple collates and switch)
+def custom_collate(batch):
+  collated_batch = {
+    "image": [],
+    "path": torch.stack([torch.tensor(sample["path"]) for sample in batch]),
+    "desire": torch.stack([torch.tensor(sample["desire"]) for sample in batch]),
+  }
+
+  for item in batch:
+    frame = load_frame(item)
+    collated_batch["image"].append(frame)
+  collated_batch["image"] = torch.stack([torch.tensor(frame) for frame in collated_batch["image"]])
+
+  return collated_batch
+
+def load_frame(item):
+  cap = cv2.VideoCapture(item["video_path"])
+  cap.set(cv2.CAP_PROP_POS_FRAMES, item["framenum"])
+  _, frame = cap.read()
+  frame = cv2.resize(frame, (W, H))
+  frame = np.moveaxis(frame, -1, 0)
+  return frame
+
+def load_frames(item):
+  cap = cv2.VideoCapture(item["video_path"])
+  cap.set(cv2.CAP_PROP_POS_FRAMES, item["framenum"])
+  frames = []
+  for _ in range(2):
+    ret, frame = cap.read()
+    if not ret:
+      break
+
+    frame = cv2.resize(frame, (W, H))
+    frame = np.moveaxis(frame, -1, 0)
+    frames.append(frame)
+  return frames
+
+
 class MultiVideoDataset(Dataset):
   def __init__(self, base_dir, multi_frames=False, combo=True):
     super(Dataset, self).__init__()
@@ -111,9 +150,10 @@ class MultiVideoDataset(Dataset):
     return len(self.images)
 
   def __getitem__(self, idx):
-    # get previous frame
+    """
     if self.mutli_frames:
       if idx != 0:
+        # get previous frame
         capid, framenum = self.images[idx-1]
         cap = self.caps[capid]
         cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
@@ -122,15 +162,6 @@ class MultiVideoDataset(Dataset):
         frame1 = cv2.resize(frame1, (W,H))
         frame1 = np.moveaxis(frame1, -1, 0)
         self.input_frames[0] = frame1
-    else:
-      # get current frame
-      capid, framenum = self.images[idx]
-      cap = self.caps[capid]
-      cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
-      _, frame = cap.read()
-
-      frame = cv2.resize(frame, (W,H))
-      frame = np.moveaxis(frame, -1, 0)
 
       # get current frame
       capid, framenum = self.images[idx]
@@ -141,8 +172,18 @@ class MultiVideoDataset(Dataset):
       frame2 = cv2.resize(frame2, (W,H))
       frame2 = np.moveaxis(frame2, -1, 0)
       self.input_frames[1] = frame2
+    else:
+      # get frame
+      capid, framenum = self.images[idx]
+      cap = self.caps[capid]
+      cap.set(cv2.CAP_PROP_POS_FRAMES, framenum)
+      _, frame = cap.read()
 
+      frame = cv2.resize(frame, (W,H))
+      frame = np.moveaxis(frame, -1, 0)
+    """
 
+    capid, framenum = self.images[idx]
     path = self.frame_paths[capid][framenum]
     if np.isnan(path).any():
       path = np.zeros_like(path)
@@ -150,6 +191,7 @@ class MultiVideoDataset(Dataset):
     if self.combo:
       crossroad = self.crossroads[capid][framenum]
 
+    """
     if self.mutli_frames:
       if self.combo:
         payload = {
@@ -179,6 +221,18 @@ class MultiVideoDataset(Dataset):
           "desire": desire,
         }
     return payload
+    """
+
+    item = {
+      "video_path": self.video_paths[capid],
+      "framenum": framenum,
+      "path": path,
+      "desire": desire
+    }
+    if self.combo:
+      item["crossroad"] = crossroad
+    
+    return item
 
 
 class Trainer:

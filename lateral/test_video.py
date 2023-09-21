@@ -51,7 +51,12 @@ if __name__ == "__main__":
   desires = one_hot_encode(np.load(desire_dir))
 
   # setup model and other
-  model = ComboModel().to(device)
+  combo = False
+  if "PathPlanner" in model_path:
+    model = PathPlanner().to(device)
+  elif "ComboModel" in model_path:
+    model = ComboModel().to(device)
+    combo = True
   model = load_model(model_path, model)
   model.eval()
   loss_func = MTPLoss(model.n_paths)
@@ -85,15 +90,22 @@ if __name__ == "__main__":
       X = torch.tensor([img_in,img_in]).float().to(device)
       DES = torch.tensor([desire, desire]).float().to(device)
       print("Model input shape:", X.shape)
-      out_path, out_cr = model(X, DES)
-      print("Model output shape:", out_path.shape, out_cr.shape)
-      trajectories, modes = loss_func._get_trajectory_and_modes(out_path)
+
+      if not combo:
+        out_path = model(X, DES)
+        print("Model output shape:", out_path.shape)
+      else:
+        out_path, out_cr = model(X, DES)
+        print("Model output shape:", out_path.shape, out_cr.shape)
+
+      modes, pi, sigma, mean = loss_func._get_trajectory_and_modes(out_path)
       print("Path probabilities:")
       for i in range(len(modes[0])):
         print("%d => %.2f" % (i, modes[0][i].item()))
-      print("Crossroad prediction:", out_cr[0].item(), CROSSROAD[int(round(out_cr[0].item()))])
+        if combo:
+          print("Crossroad prediction:", out_cr[0].item(), CROSSROAD[int(round(out_cr[0].item()))])
 
-      for idx, pred_path in enumerate(trajectories[0]):
+      for idx, pred_path in enumerate(mean[0]):
         path_x = pred_path.to("cpu").numpy()[:, 0]
         path_y = pred_path.to("cpu").numpy()[:, 1]
         if modes[0][idx] == torch.max(modes[0]):
@@ -117,11 +129,12 @@ if __name__ == "__main__":
     thickness = 2
 
     # display crossroad prediction
-    org = (25, 25)
-    color = (0, 0, 255)
-    text = "CROSSROAD: %s" % ("yes" if int(round(out_cr[0].item())) == 1 else "no")
-    disp_img = cv2.putText(disp_img, text, org, font,  
-                      fontScale, color, thickness, cv2.LINE_AA)
+    if combo:
+      org = (25, 25)
+      color = (0, 0, 255)
+      text = "CROSSROAD: %s" % ("yes" if int(round(out_cr[0].item())) == 1 else "no")
+      disp_img = cv2.putText(disp_img, text, org, font,  
+                        fontScale, color, thickness, cv2.LINE_AA)
 
     # display desire
     org = (25, 55)

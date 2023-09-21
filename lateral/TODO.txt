@@ -1,5 +1,11 @@
+- custom_collate for crossroads and multiple frames as well
 - label crossroads for highway driving data (89+)
+- optimize MDN, works really bad (try lr=1e-6)
+- train PathPlanner and ComboModel with MDN
+
 - test and debug MDN after studying it better first
+- if MDN doesn't work, try laplacian_nll_loss (probably already using it) or dstill_loss(kl_div_loss)
+- study comma.ai stack better
 
 - (optimization-optional) MultiVideoDataset: pseudo-normalize trajectory and get only 50 points from the 200 of trajectory (like ADA)
 

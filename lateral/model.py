@@ -9,6 +9,7 @@ from torchvision.models import efficientnet_b2
 ONEOVERSQRT2PI = 1.0 / math.sqrt(2 * math.pi)
 
 
+# MDN code from [https://github.com/sagelywizard/pytorch-mdn/blob/master/mdn/mdn.py]
 class MDN(nn.Module):
   def __init__(self, in_feats, out_feats, n_gaussians=1):
     super(MDN, self).__init__()
@@ -41,13 +42,16 @@ class MTP(nn.Module):
     super(MTP, self).__init__()
     self.n_modes = n_modes
     self.fc1 = nn.Linear(in_feats, hidden_feats)
+    self.fc2 = nn.Linear(hidden_feats, hidden_feats)
+    self.bn1 = nn.BatchNorm1d(hidden_feats)
+    self.relu = nn.ReLU()
 
     # self.fc2 = nn.Linear(hidden_feats, int(n_modes * (path_len*2) + n_modes))
     self.mdn = MDN(hidden_feats, int(n_modes * (path_len*2) + n_modes))
 
   def forward(self, x):
     # x = self.fc2(self.fc1(x))
-    pi, sigma, mu = self.mdn(self.fc1(x))
+    pi, sigma, mu = self.mdn(self.fc2(self.relu(self.bn1(self.fc1(x)))))
 
     # normalize the probabilities to sum to 1 for inference
     mode_probs = mu[:, -self.n_modes:].clone()
@@ -206,9 +210,6 @@ def mdn_loss(pi, sigma, mu, target):
 
 # MTPLoss (mutliple-trajectory prediction loss), kinda like Mixture of Experts loss
 # L2 Loss for each(i) path predicted
-# NOTE: for Multimodal Loss Function do not use Mixture of Experts (ME) Loss,
-# but a custom Multiple-Trajectory Prediction Loss:
-# get the mode/path m that is closest to the groundtruth
 class MTPLoss:
   def __init__(self, n_modes, regression_loss_weigh=1., angle_threshold_degrees=5.):
     self.n_modes = n_modes
@@ -228,10 +229,7 @@ class MTPLoss:
     sigma = model_pred[:, pi_len:(pi_len+_len)].clone().reshape(desired_shape)
     mean = model_pred[:, (pi_len+_len):-self.n_modes].clone().reshape(desired_shape)
 
-    # trajectories_no_modes = model_pred[:, :-self.n_modes].clone().reshape(desired_shape)
-    trajectories_no_modes = mean.clone().reshape(desired_shape)
-
-    return trajectories_no_modes, mode_probs, pi, sigma, mean
+    return mode_probs, pi, sigma, mean
 
   # computes the angle between the last points of two paths (degrees)
   @staticmethod
@@ -311,11 +309,11 @@ class MTPLoss:
   #and the targets are of shape [batch_size, 1, n_timesteps, 2]
   def __call__(self, predictions, targets):
     batch_losses = torch.Tensor().requires_grad_(True).to(predictions.device)
-    trajectories, modes, pi, sigma, mean = self._get_trajectory_and_modes(predictions)
+    modes, pi, sigma, mean = self._get_trajectory_and_modes(predictions)
 
     for batch_idx in range(predictions.shape[0]):
-      angles = self._compute_angles_from_ground_truth(target=targets[batch_idx], trajectories=trajectories[batch_idx])
-      best_mode = self._compute_best_mode(angles, target=targets[batch_idx], trajectories=trajectories[batch_idx])
+      angles = self._compute_angles_from_ground_truth(target=targets[batch_idx], trajectories=mean[batch_idx])
+      best_mode = self._compute_best_mode(angles, target=targets[batch_idx], trajectories=mean[batch_idx])
       # best_mode_trajectory = trajectories[batch_idx, best_mode, :].unsqueeze(0)
       # regression_loss = F.smooth_l1_loss(best_mode_trajectory[0], targets[batch_idx])
 
