@@ -1,13 +1,24 @@
-- custom_collate for crossroads and multiple frames as well
-- label crossroads for highway driving data (89+)
-- optimize MDN, works really bad (try lr=1e-6)
+NOTE: best model so far: pathplanner_BS16_lr1e-5_07-09-23 + combomodel_BS16_lr1e-5_11-09-23
+
+- cleanup runs and models, remove failed or useless experiments
+- switch between Linear and MDN MTP-layer
+
+- either set lr=1e-7 for more epochs or add more model parameters (or less?)
+- custom_collate for crossroads + train ComboModel
+- custom plot epoch training and evaluation losses to check for overfitting
+
+- optimize MDN, underfitting
 - train PathPlanner and ComboModel with MDN
+- custom_collatemultiple frames as well
 
 - test and debug MDN after studying it better first
 - if MDN doesn't work, try laplacian_nll_loss (probably already using it) or dstill_loss(kl_div_loss)
 - study comma.ai stack better
 
+- fix NaN problem with multiple workers (TEMPHACK)
 - (optimization-optional) MultiVideoDataset: pseudo-normalize trajectory and get only 50 points from the 200 of trajectory (like ADA)
+
+#===============================
 
 - make a release
 *merge cnn_dev with mdn_dev
@@ -15,7 +26,17 @@
 *better README (+ docs?)
 *tidy up project
 
+#===============================
 
+FUTURE MDOEL PREDICTIONS:
+* lead_car + lead_car_prob
+* pose
+* (?) lane_lines, road_edges
+
+#=====================================================================================================
+
+- try lr=1e-6 for MDN net, loss <= 4.5!!!  (DONE)
+- label crossroads for highway driving data (91+) (DONE)
 - make path prediction => <xy_points,prob> => <[pi,sigma,mean], pob> (MDN)  (DONE)
 - FIX: right turns, make desire more important? (model mostly wants to go left, needs more data) (DONE)
 - train ComboModel on new data  (DONE)

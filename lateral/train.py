@@ -17,10 +17,11 @@ if writer_path == None:
   writer_path = "runs/train_eval_0"
 print("[+] Tensorboard Writer path:", writer_path)
 
-BS = 16 # max Batch Size for current models on my PC
-EPOCHS = 100
-LR = 1e-4
-N_WORKERS = 4
+# HYPERPARAMETERS
+BS = 16   # max Batch Size for current models on my PC
+EPOCHS = 200
+LR = 1e-6
+N_WORKERS = 8
 N_GRU_LAYERS = 4
 
 

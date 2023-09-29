@@ -58,6 +58,8 @@ class PathPlannerDataset(Dataset):
     return {"image": frame, "path": self.frame_paths[idx]}
 
 
+# BUG: getting nan from loss, meaning some tensors return nan here
+#      (not due to race condition, this code is the problem)... FIX
 # TODO: modify this (switch between single/multi-frame)
 # TODO: switch crossroads as well (maybe make multiple collates and switch)
 def custom_collate(batch):
@@ -258,6 +260,7 @@ class Trainer:
     print("Checkpoint saved at", path)
 
   def train(self, epochs=100, lr=1e-3):
+    NANS = 0
     #loss_func = nn.MSELoss()
     if self.combo:
       loss_func = ComboLoss(2, self.model, self.device)
@@ -295,9 +298,10 @@ class Trainer:
               out_path = self.model(X, desire)
               loss = loss_func(out_path, Y_path)
 
-            if not train:
-              self.writer.add_scalar('running evaluation loss', loss.item(), i_batch)
-            val_losses.append(loss.item())
+            if not torch.isnan(loss):
+              if not train:
+                self.writer.add_scalar('running evaluation loss', loss.item(), i_batch)
+              val_losses.append(loss.item())
             t.set_description("Eval Batch Loss: %.2f"%(loss.item()))
 
         except KeyboardInterrupt:
@@ -341,11 +345,23 @@ class Trainer:
             out_path = self.model(X, desire)
             loss = loss_func(out_path, Y_path)
 
-          self.writer.add_scalar("running loss", loss.item(), i_batch)
-          epoch_losses.append(loss.item())
+          # BUG might be in loss function?, examine input thoroughly as well
+          if torch.isnan(loss):
+            NANS += 1
+            """
+            print("NaN Loss Detected!")
+            print(X)
+            print(desire)
+            print(Y_path)
+            exit(0)
+            """
 
-          loss.backward()
-          optim.step()
+          # TODO: temp hack, might result in data loss
+          if not torch.isnan(loss):
+            self.writer.add_scalar("running loss", loss.item(), i_batch)
+            epoch_losses.append(loss.item())
+            loss.backward()
+            optim.step()
 
           t.set_description("Batch Training Loss: %.2f"%(loss.item()))
 
@@ -367,6 +383,7 @@ class Trainer:
       print("[~] Training stopped by user")
     print("[+] Training Done")
     save_model(self.model_path, self.model)
+    print("NaN losses detected:", NANS)
 
     val_losses = []
     val_losses = eval(val_losses)

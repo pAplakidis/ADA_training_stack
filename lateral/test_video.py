@@ -52,14 +52,19 @@ if __name__ == "__main__":
 
   # setup model and other
   combo = False
+
+  use_mdn = False
+  if "MDN" in model_path:
+    use_mdn = True
+
   if "PathPlanner" in model_path:
-    model = PathPlanner().to(device)
+    model = PathPlanner(use_mdn=use_mdn).to(device)
   elif "ComboModel" in model_path:
-    model = ComboModel().to(device)
+    model = ComboModel(use_mdn=use_mdn).to(device)
     combo = True
   model = load_model(model_path, model)
   model.eval()
-  loss_func = MTPLoss(model.n_paths)
+  loss_func = MTPLoss(model.n_paths, use_mdn=False)
   fig = go.FigureWidget()
 
   fid = 0 # frame id/index
@@ -98,14 +103,19 @@ if __name__ == "__main__":
         out_path, out_cr = model(X, DES)
         print("Model output shape:", out_path.shape, out_cr.shape)
 
-      modes, pi, sigma, mean = loss_func._get_trajectory_and_modes(out_path)
+      if use_mdn:
+        modes, pi, sigma, mean = loss_func._get_trajectory_and_modes(out_path)
+        trajectories = mean
+      else:
+        trajectories, modes = loss_func._get_trajectory_and_modes(out_path)
+
       print("Path probabilities:")
       for i in range(len(modes[0])):
         print("%d => %.2f" % (i, modes[0][i].item()))
         if combo:
           print("Crossroad prediction:", out_cr[0].item(), CROSSROAD[int(round(out_cr[0].item()))])
 
-      for idx, pred_path in enumerate(mean[0]):
+      for idx, pred_path in enumerate(trajectories[0]):
         path_x = pred_path.to("cpu").numpy()[:, 0]
         path_y = pred_path.to("cpu").numpy()[:, 1]
         if modes[0][idx] == torch.max(modes[0]):

@@ -38,37 +38,45 @@ class MDN(nn.Module):
 class MTP(nn.Module):
   # n_modes: number of paths output
   # path_len: number of points of each path
-  def __init__(self, in_feats, n_modes=3, path_len=200, hidden_feats=4096):
+  def __init__(self, in_feats, n_modes=3, path_len=200, hidden_feats=4096, use_mdn=True):
     super(MTP, self).__init__()
+    self.use_mdn = use_mdn
+
     self.n_modes = n_modes
     self.fc1 = nn.Linear(in_feats, hidden_feats)
-    self.fc2 = nn.Linear(hidden_feats, hidden_feats)
-    self.bn1 = nn.BatchNorm1d(hidden_feats)
-    self.relu = nn.ReLU()
+    if self.use_mdn:
+      self.bn1 = nn.BatchNorm1d(hidden_feats)
+      self.relu = nn.ReLU()
 
-    # self.fc2 = nn.Linear(hidden_feats, int(n_modes * (path_len*2) + n_modes))
-    self.mdn = MDN(hidden_feats, int(n_modes * (path_len*2) + n_modes))
+    if self.use_mdn:
+      self.fc2 = nn.Linear(hidden_feats, hidden_feats)
+      self.mdn = MDN(hidden_feats, int(n_modes * (path_len*2) + n_modes))
+    else:
+      self.fc2 = nn.Linear(hidden_feats, int(n_modes * (path_len*2) + n_modes))
 
   def forward(self, x):
-    # x = self.fc2(self.fc1(x))
-    pi, sigma, mu = self.mdn(self.fc2(self.relu(self.bn1(self.fc1(x)))))
+    if self.use_mdn:
+      pi, sigma, mu = self.mdn(self.fc2(self.relu(self.bn1(self.fc1(x)))))
+      mode_probs = mu[:, -self.n_modes:].clone()
+
+      sigma = sigma[:, :-self.n_modes]
+      mu = mu[:, :-self.n_modes]
+      x = torch.cat((pi, sigma, mu), 1)
+    else:
+      x = self.fc2(self.fc1(x))
+      mode_probs = x[:, -self.n_modes:].clone()
+      x = x[:, :-self.n_modes]
 
     # normalize the probabilities to sum to 1 for inference
-    mode_probs = mu[:, -self.n_modes:].clone()
     if not self.training:
       mode_probs = F.softmax(mode_probs, dim=1)
 
-    sigma = sigma[:, :-self.n_modes]
-    mu = mu[:, :-self.n_modes]
-    x = torch.cat((pi, sigma, mu), 1)
-
-    # x = x[:, :-self.n_modes]
     return torch.cat((x, mode_probs), 1)
 
 
 # NOTE: resolutions not divisible by 8, 16 can cause problems
 class PathPlanner(nn.Module):
-  def __init__(self, n_paths=5):
+  def __init__(self, n_paths=5, use_mdn=True):
     super(PathPlanner, self).__init__()
     self.n_paths = n_paths
     effnet = efficientnet_b2(pretrained=True)
@@ -82,7 +90,7 @@ class PathPlanner(nn.Module):
     # multimodal (multiple paths with probabilities) output (check out mixture density networks)
     # meaning output is M future paths (for now) <xi,yi> for i in range(2*H)
     # along with each path's probabilities, these probabilities are passed through a softmax layer
-    self.policy = MTP(1411, n_modes=self.n_paths)
+    self.policy = MTP(1411, n_modes=self.n_paths, use_mdn=use_mdn)
 
   def forward(self, x, desire):
     x = self.vision(x)
@@ -101,13 +109,13 @@ class PathPlanner(nn.Module):
 
 
 class ComboModel(nn.Module):
-  def __init__(self, n_paths=5):
+  def __init__(self, n_paths=5, use_mdn=True):
     super(ComboModel, self).__init__()
     self.n_paths = n_paths
     effnet = efficientnet_b2(pretrained=True)
 
     self.vision = nn.Sequential(*(list(effnet.children())[:-1]))
-    self.policy = MTP(1411, n_modes=self.n_paths)
+    self.policy = MTP(1411, n_modes=self.n_paths, use_mdn=use_mdn)
     self.cr_detector = nn.Sequential(
       nn.Linear(1411, 1024),
       nn.BatchNorm1d(1024),
@@ -208,10 +216,13 @@ def mdn_loss(pi, sigma, mu, target):
   loss = -torch.log(weighted_sum + 1e-6)
   return torch.mean(loss)
 
+# TODO: switch from MDN to Linear
 # MTPLoss (mutliple-trajectory prediction loss), kinda like Mixture of Experts loss
 # L2 Loss for each(i) path predicted
 class MTPLoss:
-  def __init__(self, n_modes, regression_loss_weigh=1., angle_threshold_degrees=5.):
+  def __init__(self, n_modes, regression_loss_weigh=1., angle_threshold_degrees=5., use_mdn=True):
+    self.use_mdn = use_mdn
+
     self.n_modes = n_modes
     self.n_location_coords_predicted = 2  # (x,y) for each timestep
     self.trajectory_length = 200
@@ -223,13 +234,17 @@ class MTPLoss:
     mode_probs = model_pred[:, -self.n_modes:].clone()
     desired_shape = (model_pred.shape[0], self.n_modes, -1, self.n_location_coords_predicted)
 
-    pi_len = self.trajectory_length*self.n_modes
-    _len = self.trajectory_length * self.n_modes * 2
-    pi = model_pred[:, :pi_len].reshape(desired_shape[:-1]).clone()
-    sigma = model_pred[:, pi_len:(pi_len+_len)].clone().reshape(desired_shape)
-    mean = model_pred[:, (pi_len+_len):-self.n_modes].clone().reshape(desired_shape)
+    if self.use_mdn:
+      pi_len = self.trajectory_length*self.n_modes
+      _len = self.trajectory_length * self.n_modes * 2
+      pi = model_pred[:, :pi_len].reshape(desired_shape[:-1]).clone()
+      sigma = model_pred[:, pi_len:(pi_len+_len)].clone().reshape(desired_shape)
+      mean = model_pred[:, (pi_len+_len):-self.n_modes].clone().reshape(desired_shape)
 
-    return mode_probs, pi, sigma, mean
+      return mode_probs, pi, sigma, mean
+    else:
+      trajectories_no_modes = model_pred[:, :-self.n_modes].clone().reshape(desired_shape)
+      return trajectories_no_modes, mode_probs
 
   # computes the angle between the last points of two paths (degrees)
   @staticmethod
@@ -309,19 +324,28 @@ class MTPLoss:
   #and the targets are of shape [batch_size, 1, n_timesteps, 2]
   def __call__(self, predictions, targets):
     batch_losses = torch.Tensor().requires_grad_(True).to(predictions.device)
-    modes, pi, sigma, mean = self._get_trajectory_and_modes(predictions)
+    if self.use_mdn:
+      modes, pi, sigma, mean = self._get_trajectory_and_modes(predictions)
+    else:
+      trajectories, modes = self._get_trajectory_and_modes(predictions)
 
     for batch_idx in range(predictions.shape[0]):
-      angles = self._compute_angles_from_ground_truth(target=targets[batch_idx], trajectories=mean[batch_idx])
-      best_mode = self._compute_best_mode(angles, target=targets[batch_idx], trajectories=mean[batch_idx])
-      # best_mode_trajectory = trajectories[batch_idx, best_mode, :].unsqueeze(0)
-      # regression_loss = F.smooth_l1_loss(best_mode_trajectory[0], targets[batch_idx])
+      if self.use_mdn:
+        angles = self._compute_angles_from_ground_truth(target=targets[batch_idx], trajectories=mean[batch_idx])
+        best_mode = self._compute_best_mode(angles, target=targets[batch_idx], trajectories=mean[batch_idx])
+        # best_mode_trajectory = trajectories[batch_idx, best_mode, :].unsqueeze(0)
+        # regression_loss = F.smooth_l1_loss(best_mode_trajectory[0], targets[batch_idx])
 
-      best_pi = pi[batch_idx, best_mode, :].unsqueeze(1)
-      best_sigma = sigma[batch_idx, best_mode, :]
-      best_mu = mean[batch_idx, best_mode, :]
+        best_pi = pi[batch_idx, best_mode, :].unsqueeze(1)
+        best_sigma = sigma[batch_idx, best_mode, :]
+        best_mu = mean[batch_idx, best_mode, :]
 
-      regression_loss = mdn_loss(best_pi, best_sigma, best_mu, targets[batch_idx])
+        regression_loss = mdn_loss(best_pi, best_sigma, best_mu, targets[batch_idx])
+      else:
+        angles = self._compute_angles_from_ground_truth(target=targets[batch_idx], trajectories=trajectories[batch_idx])
+        best_mode = self._compute_best_mode(angles, target=targets[batch_idx], trajectories=trajectories[batch_idx])
+        best_mode_trajectory = trajectories[batch_idx, best_mode, :].unsqueeze(0)
+        regression_loss = F.smooth_l1_loss(best_mode_trajectory[0], targets[batch_idx])
 
       mode_probabilities = modes[batch_idx].unsqueeze(0)
       best_mode_target = torch.tensor([best_mode], device=predictions.device)
