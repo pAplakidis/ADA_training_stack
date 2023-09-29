@@ -20,9 +20,10 @@ print("[+] Tensorboard Writer path:", writer_path)
 # HYPERPARAMETERS
 BS = 16   # max Batch Size for current models on my PC
 EPOCHS = 200
-LR = 1e-6
+LR = 1e-5
 N_WORKERS = 8
 N_GRU_LAYERS = 4
+USE_MDN = False
 
 
 if __name__ == "__main__":
@@ -30,8 +31,8 @@ if __name__ == "__main__":
   print("[+] Using device:", device)
 
   # define/select model
-  model = PathPlanner()
-  # model = ComboModel()
+  model = PathPlanner(use_mdn=USE_MDN)
+  # model = ComboModel(use_mdn=USE_MDN)
   # model = SuperComboModel(n_layers=N_GRU_LAYERS)
   print(model)
 
@@ -60,7 +61,7 @@ if __name__ == "__main__":
 
   # train model
   trainer = Trainer(device, model, train_loader, val_loader, model_path, writer_path, use_rnn=use_rnn, combo=combo)
-  trainer.train(epochs=EPOCHS, lr=LR)
+  trainer.train(epochs=EPOCHS, lr=LR, use_mdn=USE_MDN)
 
   #dataset.cap.release()
   for cap in dataset.caps:

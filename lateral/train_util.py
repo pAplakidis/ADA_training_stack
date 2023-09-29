@@ -259,13 +259,13 @@ class Trainer:
     torch.save(state, path)
     print("Checkpoint saved at", path)
 
-  def train(self, epochs=100, lr=1e-3):
+  def train(self, epochs=100, lr=1e-4, use_mdn=True):
     NANS = 0
     #loss_func = nn.MSELoss()
     if self.combo:
       loss_func = ComboLoss(2, self.model, self.device)
     else:
-      loss_func = MTPLoss(self.model.n_paths)
+      loss_func = MTPLoss(self.model.n_paths, use_mdn=use_mdn)
     optim = torch.optim.AdamW(self.model.parameters(), lr=lr)
     # scheduler = lr_scheduler.ExponentialLR(optim, gamma=0.99)
 
