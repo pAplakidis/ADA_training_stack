@@ -58,15 +58,29 @@ class PathPlannerDataset(Dataset):
     return {"image": frame, "path": self.frame_paths[idx]}
 
 
-# BUG: getting nan from loss, meaning some tensors return nan here
+# BUG: WHEN USING MDN: getting nan from loss, meaning some tensors return nan here
 #      (not due to race condition, this code is the problem)... FIX
-# TODO: modify this (switch between single/multi-frame)
-# TODO: switch crossroads as well (maybe make multiple collates and switch)
-def custom_collate(batch):
+# TODO: modify this (switch between single/multi-frame for RNN)
+def custom_collate_pathplanner(batch):
   collated_batch = {
     "image": [],
     "path": torch.stack([torch.tensor(sample["path"]) for sample in batch]),
     "desire": torch.stack([torch.tensor(sample["desire"]) for sample in batch]),
+  }
+
+  for item in batch:
+    frame = load_frame(item)
+    collated_batch["image"].append(frame)
+  collated_batch["image"] = torch.stack([torch.tensor(frame) for frame in collated_batch["image"]])
+
+  return collated_batch
+
+def custom_collate_combomodel(batch):
+  collated_batch = {
+    "image": [],
+    "path": torch.stack([torch.tensor(sample["path"]) for sample in batch]),
+    "desire": torch.stack([torch.tensor(sample["desire"]) for sample in batch]),
+    "crossroad": torch.stack([torch.tensor(sample["crossroad"]) for sample in batch])
   }
 
   for item in batch:
@@ -263,7 +277,7 @@ class Trainer:
     NANS = 0
     #loss_func = nn.MSELoss()
     if self.combo:
-      loss_func = ComboLoss(2, self.model, self.device)
+      loss_func = ComboLoss(2, self.model, self.device, use_mdn=use_mdn)
     else:
       loss_func = MTPLoss(self.model.n_paths, use_mdn=use_mdn)
     optim = torch.optim.AdamW(self.model.parameters(), lr=lr)
@@ -316,6 +330,7 @@ class Trainer:
     vlosses = []
     try:
       print("[+] Training ...")
+      idx = 0
       for epoch in range(epochs):
         self.model.train()
         print("\n[=>] Epoch %d/%d"%(epoch+1, epochs))
@@ -345,8 +360,12 @@ class Trainer:
             out_path = self.model(X, desire)
             loss = loss_func(out_path, Y_path)
 
-          # BUG might be in loss function?, examine input thoroughly as well
-          if torch.isnan(loss):
+          if not torch.isnan(loss):
+            self.writer.add_scalar("running loss", loss.item(), idx)
+            epoch_losses.append(loss.item())
+            loss.backward()
+            optim.step()
+          else:
             NANS += 1
             """
             print("NaN Loss Detected!")
@@ -356,14 +375,8 @@ class Trainer:
             exit(0)
             """
 
-          # TODO: temp hack, might result in data loss
-          if not torch.isnan(loss):
-            self.writer.add_scalar("running loss", loss.item(), i_batch)
-            epoch_losses.append(loss.item())
-            loss.backward()
-            optim.step()
-
           t.set_description("Batch Training Loss: %.2f"%(loss.item()))
+          idx += 1
 
         avg_epoch_loss = np.array(epoch_losses).mean()
         losses.append(avg_epoch_loss)
@@ -375,7 +388,7 @@ class Trainer:
           epoch_vlosses = eval(epoch_vlosses, train=True)
           avg_epoch_vloss = np.array(epoch_vlosses).mean()
           vlosses.append(avg_epoch_vloss)
-          # TODO: plot on the same as final training losses
+          # TODO: custom plot on the same figure as final training losses
           self.writer.add_scalar('epoch evaluation loss', avg_epoch_vloss, epoch)
           print("[->] Epoch average evaluation loss: %.4f"%(avg_epoch_vloss))
 
@@ -385,6 +398,7 @@ class Trainer:
     save_model(self.model_path, self.model)
     print("NaN losses detected:", NANS)
 
+    # final evaluation
     val_losses = []
     val_losses = eval(val_losses)
     print("Avg Eval Loss: %.4f"%(np.array(val_losses).mean()))

@@ -31,25 +31,29 @@ if __name__ == "__main__":
   print("[+] Using device:", device)
 
   # define/select model
-  model = PathPlanner(use_mdn=USE_MDN)
-  # model = ComboModel(use_mdn=USE_MDN)
+  # model = PathPlanner(use_mdn=USE_MDN)
+  model = ComboModel(use_mdn=USE_MDN)
   # model = SuperComboModel(n_layers=N_GRU_LAYERS)
   print(model)
 
-  use_rnn = False
-  combo = False
   if isinstance(model, PathPlanner):
     print("[+] Using model: Pathplanner")
     use_rnn = False
     combo = False
+    custom_collate = custom_collate_pathplanner
   elif isinstance(model, ComboModel):
     print("[+] Using model: ComboModel")
     use_rnn = False
     combo = True
+    custom_collate = custom_collate_combomodel
   elif isinstance(model, SuperComboModel):
     print("[+] Using model: SuperComboModel")
     use_rnn = True
     combo = True
+    custom_collate = custom_collate_combomodel
+  else:
+    print("Model not recognized!")
+    exit(1)
 
   # get data
   dataset = MultiVideoDataset("../data/sim/train/", multi_frames=use_rnn, combo=combo)

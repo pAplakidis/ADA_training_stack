@@ -1,15 +1,18 @@
 NOTE: best model so far: pathplanner_BS16_lr1e-5_07-09-23 + combomodel_BS16_lr1e-5_11-09-23
 
-- TRAIN MDN: either set lr=1e-7 for more epochs or add more model parameters (or less?)
+- TRAIN PATHPLANNER: at least 50 epochs (best loss: 1.7498 at epoch 120, works fine) (DONE)
+- TRAIN COMBOMODEL: custom_collate for CROSSROADS, train, compare to pathplanner plots and inference
+- export models to .onnx for inference and test on sim
 - merge master with mdn_dev
+- test_video.py: run both PathPlanner and ComboModel at the same time, plot on different figures, pause and go through frame by frame, compare results
 
-- custom_collate for CROSSROADS + train ComboModel
-- CUSTOM PLOT for epoch training and evaluation losses to check for overfitting
-
+- TRAIN MDN: either set lr=1e-7 for more epochs or add more model parameters (or less?)
+    MODEL_PATH="models/PathPlanner_29-09-23.pth" WRITER_PATH="runs/pathplanner_BS16_lr1e-5_29-09-23" ./train.py
 - optimize MDN, underfitting
+- CUSTOM PLOT for epoch training and evaluation losses to check for overfitting
 - train PathPlanner and ComboModel with MDN
 
-- test and debug MDN after studying it better first
+- test and debug MDN after studying it better first, read MDN paper
 - study comma.ai stack better
 
 - custom_collatemultiple frames as well (supercombo, ?)
