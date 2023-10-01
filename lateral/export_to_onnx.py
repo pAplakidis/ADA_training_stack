@@ -4,6 +4,8 @@ import os
 import torch.onnx
 from model import *
 
+# USAGE: ./export_to_onnx.py ComboModel_01-10-23
+
 """
 model_names = ["PathPlanner",
                "ComboModel",
@@ -18,10 +20,12 @@ onnx_path = "models/" + model_name + ".onnx"
 
 def export(model_path, onnx_path):
   input_names = ["road_image", "desire"]
-  #output_names = ["path"]
-  output_names = ["path", "crossroad"]
 
-  model = ComboModel() # CHANGE THIS
+  #output_names = ["path"]
+  #model = PathPlanner(use_mdn=False)
+
+  output_names = ["path", "crossroad"]
+  model = ComboModel(use_mdn=False) # CHANGE THIS
   """
   if model_name == model_names[0]:
     model = PathPlanner()
