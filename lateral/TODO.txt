@@ -2,9 +2,17 @@ NOTE: best model so far: pathplanner_BS16_lr1e-5_07-09-23 + combomodel_BS16_lr1e
 
 - TRAIN PATHPLANNER: at least 50 epochs (best loss: 1.7498 at epoch 120, works fine) (DONE)
 - TRAIN COMBOMODEL: custom_collate for CROSSROADS, train, compare to pathplanner plots and inference  (DONE)
-- export models to .onnx for inference and test on sim
-- merge master with mdn_dev
+- export models to .onnx for inference  (DONE)
+- merge master with mdn_dev (DONE)
+- run new models on ADA/sim.py  (DONE)
+
+- README: usage
 - test_video.py: run both PathPlanner and ComboModel at the same time, plot on different figures, pause and go through frame by frame, compare results
+- FIX: if in a crossroad, ignores turn, but not desired turn (more data on right turns?)
+
+NOTE: ComboModel knows when to STOP and achieves slightly better loss of policy_head for the same epochs
+
+#-----------------------------------------
 
 - TRAIN MDN: either set lr=1e-7 for more epochs or add more model parameters (or less?)
     MODEL_PATH="models/PathPlanner_29-09-23.pth" WRITER_PATH="runs/pathplanner_BS16_lr1e-5_29-09-23" ./train.py

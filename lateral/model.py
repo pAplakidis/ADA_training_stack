@@ -388,7 +388,7 @@ class ComboLoss(nn.Module):
     loss = loss0 + loss1
     #loss = loss.mean()
 
-    return loss.to(self.device)
+    return loss.to(self.device), loss0, loss1
 
 
 def save_model(path, model):

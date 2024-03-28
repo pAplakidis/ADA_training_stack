@@ -58,8 +58,10 @@ if __name__ == "__main__":
     use_mdn = True
 
   if "PathPlanner" in model_path:
+    print("Using single-task model")
     model = PathPlanner(use_mdn=use_mdn).to(device)
   elif "ComboModel" in model_path:
+    print("Using multi-task model")
     model = ComboModel(use_mdn=use_mdn).to(device)
     combo = True
   model = load_model(model_path, model)

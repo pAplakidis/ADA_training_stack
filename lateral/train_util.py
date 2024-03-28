@@ -197,17 +197,7 @@ class MultiVideoDataset(Dataset):
 
       frame = cv2.resize(frame, (W,H))
       frame = np.moveaxis(frame, -1, 0)
-    """
 
-    capid, framenum = self.images[idx]
-    path = self.frame_paths[capid][framenum]
-    if np.isnan(path).any():
-      path = np.zeros_like(path)
-    desire = self.desires[capid][framenum]
-    if self.combo:
-      crossroad = self.crossroads[capid][framenum]
-
-    """
     if self.mutli_frames:
       if self.combo:
         payload = {
@@ -238,6 +228,15 @@ class MultiVideoDataset(Dataset):
         }
     return payload
     """
+
+    capid, framenum = self.images[idx]
+    path = self.frame_paths[capid][framenum]
+    if np.isnan(path).any():
+      path = np.zeros_like(path)
+    desire = self.desires[capid][framenum]
+    if self.combo:
+      crossroad = self.crossroads[capid][framenum]
+
 
     item = {
       "video_path": self.video_paths[capid],
@@ -315,6 +314,7 @@ class Trainer:
             if not torch.isnan(loss):
               if not train:
                 self.writer.add_scalar('running evaluation loss', loss.item(), i_batch)
+
               val_losses.append(loss.item())
             t.set_description("Eval Batch Loss: %.2f"%(loss.item()))
 
@@ -334,7 +334,7 @@ class Trainer:
       for epoch in range(epochs):
         self.model.train()
         print("\n[=>] Epoch %d/%d"%(epoch+1, epochs))
-        epoch_losses = []
+        epoch_losses, epoch_path_plan_losses  = [], []
         epoch_vlosses = []
 
         for i_batch, sample_batched in enumerate((t := tqdm(self.train_loader))):
@@ -355,7 +355,7 @@ class Trainer:
               out_path, out_cr = self.model(IN_FRAMES, desire)
             else:
               out_path, out_cr = self.model(X, desire)
-            loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
+            loss, path_plan_loss, cr_loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
           else:
             out_path = self.model(X, desire)
             loss = loss_func(out_path, Y_path)
@@ -363,6 +363,10 @@ class Trainer:
           if not torch.isnan(loss):
             self.writer.add_scalar("running loss", loss.item(), idx)
             epoch_losses.append(loss.item())
+            if self.combo:
+              self.writer.add_scalar('running path plan loss', path_plan_loss.item(), i_batch)
+              epoch_path_plan_losses.append(path_plan_loss.item())
+
             loss.backward()
             optim.step()
           else:
@@ -381,6 +385,9 @@ class Trainer:
         avg_epoch_loss = np.array(epoch_losses).mean()
         losses.append(avg_epoch_loss)
         self.writer.add_scalar("epoch training loss", avg_epoch_loss, epoch)
+        if self.combo:
+          avg_epoch_path_plan_loss = np.array(epoch_path_plan_losses).mean()
+          self.writer.add_scalar("epoch training PathPlanner loss", avg_epoch_path_plan_loss, epoch)
         print("[->] Epoch average training loss: %.4f"%(avg_epoch_loss))
         # scheduler.step()
 

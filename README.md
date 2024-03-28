@@ -7,6 +7,7 @@
 
 - train MDN
 - train RNN (even though basic CNN works better for now)
+- implement ViT model
 - add more predictions (road edges, poses, lead car, etc)
 - add more input (checkout comma.ai's navigation, rnn state, traffic convention, etc)
 
