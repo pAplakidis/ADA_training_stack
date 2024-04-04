@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 
 # net input resolution
 W = H = 224
+N_FRAMES = 3
 
 IMG_WIDTH = 1164  # 2D camera display W
 IMG_HEIGHT = 874  # 2D camera display W

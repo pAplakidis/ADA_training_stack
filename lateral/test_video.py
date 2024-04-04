@@ -5,11 +5,12 @@ import plotly.io as pio
 import plotly.express as px
 import plotly.graph_objects as go
 
-from train_util import *
+from dataset import *
+from loss import *
 from util import *
 from model import *
 
-# EXAMPLE USAGE: DATADIR="../data/sim/test/29/" MODEL_PATH="models/ComboModel.pth" ./test_video.py
+# EXAMPLE USAGE: DATADIR="../data/sim/test/29/" MODEL_PATH="models/ComboModel.pt" ./test_video.py
 
 base_dir = os.getenv("DATADIR")
 if base_dir is None:
@@ -18,7 +19,7 @@ if base_dir is None:
 
 model_path = os.getenv("MODEL_PATH")
 if model_path == None:
-  model_path = "models/path_planner_desire.pth"
+  model_path = "models/path_planner_desire.pt"
 print("[+] Model save path:", model_path)
 
 def figshow(fig):

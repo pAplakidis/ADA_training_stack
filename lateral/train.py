@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import DataLoader, random_split
 
 from model import *
-from train_util import *
+from dataset import *
+from trainer import *
 from util import *
 
-# EXAMPLE USAGE: MODEL_PATH="models/path_planner.pth" WRITER_PATH="runs/test_1" ./train.py
+# EXAMPLE USAGE: MODEL_PATH="models/path_planner.pt" WRITER_PATH="runs/test_1" ./train.py
 
 model_path = os.getenv("MODEL_PATH")
 if model_path == None:
-  model_path = "models/path_planner_desire.pth"
+  model_path = "models/path_planner_desire.pt"
 print("[+] Model save path:", model_path)
 
 writer_path = os.getenv("WRITER_PATH")
@@ -18,12 +19,14 @@ if writer_path == None:
 print("[+] Tensorboard Writer path:", writer_path)
 
 # HYPERPARAMETERS
-BS = 16   # max Batch Size for current models on my PC
+BS = 2   # max Batch Size for current models on my PC
 EPOCHS = 200
 LR = 1e-5
+HIDDEN_SIZE = 500
 N_WORKERS = 8
 N_GRU_LAYERS = 4
 USE_MDN = False
+VERBOSE = False
 
 
 if __name__ == "__main__":
@@ -32,15 +35,20 @@ if __name__ == "__main__":
 
   # define/select model
   # model = PathPlanner(use_mdn=USE_MDN)
-  model = ComboModel(use_mdn=USE_MDN)
+  # model = ComboModel(use_mdn=USE_MDN)
   # model = SuperComboModel(n_layers=N_GRU_LAYERS)
-  print(model)
+  model = PathPlannerLSTM(HIDDEN_SIZE)
+  if VERBOSE: print(model)
 
   if isinstance(model, PathPlanner):
     print("[+] Using model: Pathplanner")
     use_rnn = False
     combo = False
     custom_collate = custom_collate_pathplanner
+  elif isinstance(model, PathPlannerLSTM):
+    use_rnn = True
+    combo = False
+    custom_collate = custom_collate_pathplanner_lstm
   elif isinstance(model, ComboModel):
     print("[+] Using model: ComboModel")
     use_rnn = False
