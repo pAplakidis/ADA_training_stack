@@ -63,6 +63,7 @@ if __name__ == "__main__":
   new_frame_time = 0
   frames = []
 
+  # FIXME: desires, ground-truth and frames are not synced properly
   while True:
     ret, frame = cap.read()
     if not ret:
@@ -108,10 +109,10 @@ if __name__ == "__main__":
         path_y = pred_path.to("cpu").numpy()[:, 1]
         if modes[0][idx] == torch.max(modes[0]):
           marker = {"color": "red"}
-          name = "best_path"
+          name = "%.2f - best_path"%modes[0][idx].item()
         else:
           marker = {"color": "blue"}
-          name = "path"+str(idx)
+          name = "%.2f - path%d"%(modes[0][idx].item(), idx)
         fig.add_scatter(x=path_x, y=path_y, name=name, marker=marker)
 
     # display ground-truth
@@ -126,7 +127,6 @@ if __name__ == "__main__":
     font = cv2.FONT_HERSHEY_SIMPLEX 
     fontScale = 1
     thickness = 2
-    fid += 1
 
     # display desire
     org = (25, 55)
