@@ -69,7 +69,10 @@ class Trainer:
                 out_path, out_cr = self.model(X, desire)
               loss = loss_func([out_path, out_cr], [Y_path, Y_cr])
             else:
-              out_path = self.model(X, desire)
+              if self.use_rnn:
+                out_path = self.model(IN_FRAMES, desire)
+              else:
+                out_path = self.model(X, desire)
               loss = loss_func(out_path, Y_path)
 
             if not torch.isnan(loss):

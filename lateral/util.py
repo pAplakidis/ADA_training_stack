@@ -6,9 +6,23 @@ import plotly.io as pio
 import plotly.express as px
 import plotly.graph_objects as go
 
+
+# HYPERPARAMETERS
+# BS = 16 # combo model
+BS = 4  # lstm model
+EPOCHS = 200
+LR = 1e-5
+HIDDEN_SIZE = 500
+N_WORKERS = 8
+N_LSTM_LAYERS = 2
+N_GRU_LAYERS = 4
+
+USE_MDN = False
+VERBOSE = False
+
 # net input resolution
 W = H = 224
-N_FRAMES = 3
+N_FRAMES = 5
 
 IMG_WIDTH = 1164  # 2D camera display W
 IMG_HEIGHT = 874  # 2D camera display W

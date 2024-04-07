@@ -185,6 +185,7 @@ class SuperComboModel(nn.Module):
       num_features *= s
     return num_features
 
+# TODO: try GRU for speed
 # inspired by: [https://geohot.github.io/blog/jekyll/update/2021/10/29/an-architecture-for-life.html]
 class PathPlannerLSTM(nn.Module):
   def __init__(self, hidden_size, n_layers=2, n_paths=5, use_mdn=False):

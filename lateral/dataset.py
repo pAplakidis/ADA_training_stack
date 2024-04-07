@@ -69,7 +69,6 @@ def custom_collate_pathplanner(batch):
 
   return collated_batch
 
-# FIXME: images (N_FRAMES)
 def custom_collate_pathplanner_lstm(batch):
   collated_batch = {
     "images": [],
@@ -107,6 +106,7 @@ def load_frame(item):
   frame = np.moveaxis(frame, -1, 0)
   return frame
 
+# TODO: spread out the frames (rate too high, frames too similar)
 def load_frames(item):
   cap = cv2.VideoCapture(item["video_path"])
   cap.set(cv2.CAP_PROP_POS_FRAMES, item["framenum"]-N_FRAMES)

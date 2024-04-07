@@ -14,19 +14,7 @@ if model_path == None:
 print("[+] Model save path:", model_path)
 
 writer_path = os.getenv("WRITER_PATH")
-if writer_path == None:
-  writer_path = "runs/train_eval_0"
 print("[+] Tensorboard Writer path:", writer_path)
-
-# HYPERPARAMETERS
-BS = 2   # max Batch Size for current models on my PC
-EPOCHS = 200
-LR = 1e-5
-HIDDEN_SIZE = 500
-N_WORKERS = 8
-N_GRU_LAYERS = 4
-USE_MDN = False
-VERBOSE = False
 
 
 if __name__ == "__main__":
@@ -79,3 +67,4 @@ if __name__ == "__main__":
   for cap in dataset.caps:
     cap.release()
   cv2.destroyAllWindows()
+  torch.cuda.empty_cache()
