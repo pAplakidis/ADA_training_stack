@@ -12,10 +12,10 @@ import plotly.graph_objects as go
 BS = 4  # lstm model
 EPOCHS = 200
 LR = 1e-5
+# HIDDEN_SIZE = 512 # TODO: retrain
 HIDDEN_SIZE = 500
 N_WORKERS = 8
-N_LSTM_LAYERS = 2
-N_GRU_LAYERS = 4
+N_RNN_LAYERS = 3
 
 USE_MDN = False
 VERBOSE = False

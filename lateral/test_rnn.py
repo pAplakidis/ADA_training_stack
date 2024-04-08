@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
   desires = one_hot_encode(np.load(desire_dir))
 
-  model = PathPlannerLSTM(HIDDEN_SIZE).to(device)
+  model = PathPlannerRNN(HIDDEN_SIZE, N_RNN_LAYERS).to(device)
   model = load_model(model_path, model)
   model.eval()
   # print(model)

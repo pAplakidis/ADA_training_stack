@@ -25,7 +25,7 @@ if __name__ == "__main__":
   # model = PathPlanner(use_mdn=USE_MDN)
   # model = ComboModel(use_mdn=USE_MDN)
   # model = SuperComboModel(n_layers=N_GRU_LAYERS)
-  model = PathPlannerLSTM(HIDDEN_SIZE)
+  model = PathPlannerRNN(HIDDEN_SIZE, N_RNN_LAYERS)
   if VERBOSE: print(model)
 
   if isinstance(model, PathPlanner):
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     use_rnn = False
     combo = False
     custom_collate = custom_collate_pathplanner
-  elif isinstance(model, PathPlannerLSTM):
+  elif isinstance(model, PathPlannerRNN):
     use_rnn = True
     combo = False
     custom_collate = custom_collate_pathplanner_lstm
