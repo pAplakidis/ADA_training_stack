@@ -14,13 +14,13 @@ def gaussian_probability(sigma, mu, target):
 # MTPLoss (mutliple-trajectory prediction loss), kinda like Mixture of Experts loss
 # L2 Loss for each(i) path predicted
 class MTPLoss:
-  def __init__(self, n_modes, regression_loss_weigh=1., angle_threshold_degrees=5., use_mdn=True):
+  def __init__(self, n_modes, regression_loss_weight=1., angle_threshold_degrees=5., use_mdn=True):
     self.use_mdn = use_mdn
 
     self.n_modes = n_modes
     self.n_location_coords_predicted = 2  # (x,y) for each timestep
     self.trajectory_length = 200
-    self.regression_loss_weight = regression_loss_weigh
+    self.regression_loss_weight = regression_loss_weight
     self.angle_threshold = angle_threshold_degrees
 
   # splits the model predictions into mode probabilities and path
@@ -134,7 +134,7 @@ class MTPLoss:
         best_sigma = sigma[batch_idx, best_mode, :]
         best_mu = mean[batch_idx, best_mode, :]
 
-        regression_loss = mdn_loss(best_pi, best_sigma, best_mu, targets[batch_idx])
+        # regression_loss = mdn_loss(best_pi, best_sigma, best_mu, targets[batch_idx])
       else:
         angles = self._compute_angles_from_ground_truth(target=targets[batch_idx], trajectories=trajectories[batch_idx])
         best_mode = self._compute_best_mode(angles, target=targets[batch_idx], trajectories=trajectories[batch_idx])

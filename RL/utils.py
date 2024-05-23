@@ -1,8 +1,40 @@
+
+# ENV
+MAP_IDX = 3 # Town04
+SYNC = True
+STEP_TICKS = 10
+
 # display image shape
 IMG_WIDTH = 1164
 IMG_HEIGHT = 874
 
 W, H = 224, 224 # model image shape
 
-SHOW_DISPLAY = False
+SHOW_DISPLAY = True
 EPISODE_LENGTH = 10
+
+CRASH_REWARD = -200
+SPEED_REWARD = -1
+BASIC_REWARD = 1
+
+# AGENT
+MODEL_NAME = "ADA"
+N_GRU_LAYERS = 4
+
+REPLAY_MEMORY_SIZE = 5000
+MIN_REPLAY_MEMORY_SIZE = 1000
+MINIBATCH_SIZE = 16
+PREDICTION_BATCH_SIZE = 1
+TRAINING_BATCH_SIZE = MINIBATCH_SIZE // 4
+UPDATE_TARGET_EVERY = 5 # update target model every N episodes (TODO: might not be needed for policy gradient)
+MEMORY_FRACTION = 0.8 # for GPU memory usage
+
+EPISODES = 100
+
+DISCOUNT = 0.99
+# TODO: might not be needed
+epsilon = 1
+EPSILON_DECAY = 0.95
+MIN_EPSILON = 0.001
+
+AGGREGATE_STATS_EVERY = 10

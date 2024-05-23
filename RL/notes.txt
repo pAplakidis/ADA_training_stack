@@ -15,7 +15,13 @@ lecture - practical_deep_RL.pdf:
 
 general:
 - observation (o) comes from CNN latent space + desire => state (s)
-- Q value comes from RNN latent space
+- temporal perceptions comes from RNN latent space
 - action (a) comes from policy network (π)
-- a = steering wheel angle or trajectory (?)
+- a = best_trajectory
+
+loss = -sum(R(τ)) (just optimize best trajectory)
+loss = sum(log(best_traj_prob) * R(τ)) (for regression + classification (?))
+
+other resources:
+- https://huggingface.co/blog/deep-rl-pg
 

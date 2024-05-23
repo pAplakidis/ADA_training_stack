@@ -8,18 +8,18 @@ import cv2
 import carla
 
 from utils import *
+from carla_world_settings import *
 
 
 class CarlaEnv:
   def __init__(self):
     self.client = carla.Client("localhost", 2000)
     self.client.set_timeout(2.0)
-    self.world = self.client.get_world()
+    print("[*] Loading Map:", maps[MAP_IDX])
+    self.world = self.client.load_world(maps[MAP_IDX])
     self.bp_lib = self.world.get_blueprint_library()
     self.vehicle_bp = self.bp_lib.filter("model3")[0]
     self.vehicle = None
-
-    self.reset()
 
   def reset(self):
     self.display_img = np.zeros((IMG_HEIGHT, IMG_WIDTH, 3))
@@ -44,9 +44,7 @@ class CarlaEnv:
     #spawn_point  = carla.Transform(carla.Location(x=-8., z=2.)) # NOTE: third-person camera view for debugging
     self.camera = self.world.spawn_actor(camera_bp, spawn_point, attach_to=self.vehicle)
     self.actor_list.append(self.camera)
-    # camera.listen(lambda img: car.process_img(img))
-    # _camerad = Camerad(car)
-    self.camera.listen(lambda img: self.process_img(img))
+    self.camera.listen(self.process_img)
     print("[+] Camera Spawned")
 
     # needed for vehicle initialization
@@ -62,6 +60,18 @@ class CarlaEnv:
 
     while self.camera is None:
       time.sleep(0.01)
+
+    # Enable synchronous mode
+    if SYNC:
+      settings = self.world.get_settings()
+      settings.synchronous_mode = True 
+      settings.no_rendering_mode = False
+      settings.fixed_delta_seconds = 0.05
+      self.world.apply_settings(settings)
+
+      # cold start
+      for _ in range(20):
+        self.world.tick()
 
     # start episode
     self.episode_start = time.time()
@@ -80,18 +90,23 @@ class CarlaEnv:
     # crashed
     if len(self.collision_history) != 0:
       done = True
-      reward = -200
+      reward = CRASH_REWARD
+      print("[-] Crashed")
     # prevent car from driving in circles
-    elif kmh < 50:
-      done = False
-      reward = -1
-    # reward for not colliding forward
+    # elif kmh < 50:
+    #   done = False
+    #   reward = SPEED_REWARD
+    # reward for not colliding
     else:
       done = False
-      reward = 1
+      reward = BASIC_REWARD
 
     if self.episode_start + EPISODE_LENGTH < time.time():
       done = True
+
+    if SYNC:
+      for i in range(STEP_TICKS):
+        self.world.tick()
 
     # return next observation, reward, done, extra_info
     return self.camera, reward, done, None
@@ -100,24 +115,41 @@ class CarlaEnv:
     img = np.array(img.raw_data)
     img = img.reshape((IMG_HEIGHT, IMG_WIDTH, 4))
     img = img[:, :, :3]
-
     self.display_img = img
 
     self.model_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     self.model_img = cv2.resize(self.model_img, (W,H))
-
-    if SHOW_DISPLAY:
-      cv2.imshow("Display IMG", self.display_img)
-      cv2.imshow("Model IMG", self.model_img)
-      cv2.waitKey(1)
+    self.model_img = np.moveaxis(self.model_img, -1, 0)
 
   def handle_collision_data(self, event):
     self.collision_history.append(event)
 
   def destroy_agents(self):
-    pass
+    for actor in self.actor_list:
+      actor.destroy()
 
 
 if __name__ == "__main__":
   env = CarlaEnv()
-  print("Hello")
+  env.reset()
+
+  try:
+    idx = 0
+    while True:
+      camera, reward, done, _ = env.step(0.0)
+      print(f"step {idx}")
+      if SHOW_DISPLAY:
+        cv2.imshow("Display IMG", env.display_img)
+        cv2.waitKey(1)
+      if done:
+        print("[+] Episode done")
+        break
+
+      idx += 1
+      time.sleep(1)
+  except RuntimeError as re:
+    print("[!]", re)
+    print("Restarting ...")
+  finally:
+    env.destroy_agents()
+    cv2.destroyAllWindows()

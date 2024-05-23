@@ -90,7 +90,7 @@ class PathPlannerRNN(nn.Module):
     # multimodal (multiple paths with probabilities) output (check out mixture density networks)
     # meaning output is M future paths (for now) <xi,yi> for i in range(2*H)
     # along with each path's probabilities, these probabilities are passed through a softmax layer
-    self.policy = MTP(hidden_size, n_modes=self.n_paths, use_mdn=use_mdn)
+    self.policy = MTP(hidden_size, n_modes=self.n_paths)
 
   def forward(self, x_3d, desire):
     feats = []

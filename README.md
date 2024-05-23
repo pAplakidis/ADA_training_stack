@@ -1,5 +1,8 @@
 # Scripts for path planning
 
+## Reinforcement Learning
+- env from: [gym-carla](https://github.com/cjy1992/gym-carla)
+
 ## TODO
 - test desire more  (DONE)
 - label CROSSROADS  (DONE)
