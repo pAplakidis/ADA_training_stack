@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import efficientnet_b2
+from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
 # MDN code from [https://github.com/sagelywizard/pytorch-mdn/blob/master/mdn/mdn.py]
 class MDN(nn.Module):
@@ -11,6 +11,7 @@ class MDN(nn.Module):
     self.in_feats = in_feats
     self.out_feats = out_feats
     self.n_gaussians = n_gaussians
+    # TODO: make constants in utils
     self.n_modes = 5
     self.n_points = 200
     self.pi = nn.Sequential(
@@ -74,7 +75,7 @@ class PathPlanner(nn.Module):
   def __init__(self, n_paths=5, use_mdn=True):
     super(PathPlanner, self).__init__()
     self.n_paths = n_paths
-    effnet = efficientnet_b2(pretrained=True)
+    effnet = efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
     self.vision = nn.Sequential(*(list(effnet.children())[:-1]))
     #del self.vision.classifier
     """
@@ -107,7 +108,7 @@ class ComboModel(nn.Module):
   def __init__(self, n_paths=5, use_mdn=True):
     super(ComboModel, self).__init__()
     self.n_paths = n_paths
-    effnet = efficientnet_b2(pretrained=True)
+    effnet = efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
 
     self.vision = nn.Sequential(*(list(effnet.children())[:-1]))
     self.policy = MTP(1411, n_modes=self.n_paths, use_mdn=use_mdn)
@@ -150,12 +151,12 @@ class SuperComboModel(nn.Module):
     self.input_size = input_size    # input channels (2 bgr frames -> 2*3 channels)
     self.hidden_size = hidden_size  # output size of GRU unit
     self.n_layers = n_layers        # number of layers in GRU unit
-    effnet = efficientnet_b2(pretrained=True)
+    effnet = efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
     effnet.features[0][0] = nn.Conv2d(self.input_size, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
 
     # like MuZero: vision->representation(h), state->dynamics(g), policy->prediction(f)
     self.vision = nn.Sequential(*(list(effnet.children())[:-1]))
-    # self.vision = efficientnet_b2(pretrained=True)
+    # self.vision = efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
     # self.state = nn.GRU(self.vision._fc.in_features, self.hidden_size, self.n_layers, batch_first=True)
     self.state = nn.GRU(1411, self.hidden_size, self.n_layers, batch_first=True)
     self.policy = MTP(self.hidden_size, n_modes=self.n_paths)
@@ -191,7 +192,7 @@ class PathPlannerRNN(nn.Module):
   def __init__(self, hidden_size, n_layers=2, n_paths=5, use_mdn=False):
     super(PathPlannerRNN, self).__init__()
     self.n_paths = n_paths
-    effnet = efficientnet_b2(pretrained=True)
+    effnet = efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
     
     # TODO: freeze during RL (+ explore = 0)
     # representation function

@@ -8,19 +8,32 @@ STEP_TICKS = 10
 IMG_WIDTH = 1164
 IMG_HEIGHT = 874
 
-W, H = 224, 224 # model image shape
 
-SHOW_DISPLAY = True
-EPISODE_LENGTH = 10
+SHOW_DISPLAY = False
+EPISODE_LENGTH = 20
 
 CRASH_REWARD = -200
 SPEED_REWARD = -1
 BASIC_REWARD = 1
 
 # AGENT
-MODEL_NAME = "ADA"
-N_GRU_LAYERS = 4
 
+# model constants
+MODEL_NAME = "ADA"
+W, H = 224, 224 # model image shape
+MODEL_PATH = "models/path_planner_gru.pt"
+N_FRAMES = 5
+HIDDEN_SIZE = 500
+N_GRU_LAYERS = 3
+
+# for path post-processing
+N_MODES = 5 # number of trajectories from model output
+N_LOCATION_COORDS_PREDICTED = 2
+ANGLE_THRESHOLD = 5.
+TRAJECTORY_LENGTH = 200 # 200 points in each path
+N_COORDINATES = 2       # x, y
+
+# RL constants
 REPLAY_MEMORY_SIZE = 5000
 MIN_REPLAY_MEMORY_SIZE = 1000
 MINIBATCH_SIZE = 16
@@ -38,3 +51,4 @@ EPSILON_DECAY = 0.95
 MIN_EPSILON = 0.001
 
 AGGREGATE_STATS_EVERY = 10
+

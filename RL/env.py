@@ -12,7 +12,7 @@ from carla_world_settings import *
 
 
 class CarlaEnv:
-  def __init__(self):
+  def __init__(self, carla_instance=None):
     self.client = carla.Client("localhost", 2000)
     self.client.set_timeout(2.0)
     print("[*] Loading Map:", maps[MAP_IDX])
@@ -20,6 +20,8 @@ class CarlaEnv:
     self.bp_lib = self.world.get_blueprint_library()
     self.vehicle_bp = self.bp_lib.filter("model3")[0]
     self.vehicle = None
+
+    self.frames_queue = []
 
   def reset(self):
     self.display_img = np.zeros((IMG_HEIGHT, IMG_WIDTH, 3))
@@ -32,7 +34,7 @@ class CarlaEnv:
     self.spawn_point = random.choice(self.world.get_map().get_spawn_points())
     self.vehicle = self.world.spawn_actor(self.vehicle_bp, self.spawn_point)
     self.actor_list.append(self.vehicle)
-    print("[+] Vehicle Spawned")
+    print("[*] Vehicle Spawned")
 
     # spawn camera
     camera_bp = self.bp_lib.find('sensor.camera.rgb')
@@ -45,7 +47,7 @@ class CarlaEnv:
     self.camera = self.world.spawn_actor(camera_bp, spawn_point, attach_to=self.vehicle)
     self.actor_list.append(self.camera)
     self.camera.listen(self.process_img)
-    print("[+] Camera Spawned")
+    print("[*] Camera Spawned")
 
     # needed for vehicle initialization
     self.vehicle.apply_control(carla.VehicleControl(throttle=0.0, brake=0.0))
@@ -56,7 +58,7 @@ class CarlaEnv:
     self.collision_sensor = self.world.spawn_actor(self.collision_sensor_bp, spawn_point, attach_to=self.vehicle)
     self.actor_list.append(self.collision_sensor)
     self.collision_sensor.listen(lambda event: self.handle_collision_data(event))
-    print("[+] Collision Sensor Spawned")
+    print("[*] Collision Sensor Spawned")
 
     while self.camera is None:
       time.sleep(0.01)
@@ -103,13 +105,14 @@ class CarlaEnv:
 
     if self.episode_start + EPISODE_LENGTH < time.time():
       done = True
+      print("[*] Episode done")
 
     if SYNC:
       for i in range(STEP_TICKS):
         self.world.tick()
 
     # return next observation, reward, done, extra_info
-    return self.camera, reward, done, None
+    return self.frames_queue, reward, done, None
 
   def process_img(self, img):
     img = np.array(img.raw_data)
@@ -120,6 +123,10 @@ class CarlaEnv:
     self.model_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     self.model_img = cv2.resize(self.model_img, (W,H))
     self.model_img = np.moveaxis(self.model_img, -1, 0)
+
+    if len(self.frames_queue) >= N_FRAMES:
+      del self.frames_queue[0]
+    self.frames_queue.append(self.model_img)
 
   def handle_collision_data(self, event):
     self.collision_history.append(event)
@@ -142,7 +149,6 @@ if __name__ == "__main__":
         cv2.imshow("Display IMG", env.display_img)
         cv2.waitKey(1)
       if done:
-        print("[+] Episode done")
         break
 
       idx += 1

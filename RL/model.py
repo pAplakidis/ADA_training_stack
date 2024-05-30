@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import efficientnet_b2
+from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
 
 # MTP code from [https://github.com/daeheepark/PathPredictNusc]
@@ -17,17 +17,9 @@ class MTP(nn.Module):
     self.fc2 = nn.Linear(hidden_feats, int(n_modes * (path_len*2) + n_modes))
 
   def forward(self, x):
-    if self.use_mdn:
-      pi, sigma, mu = self.mdn(self.fc2(self.relu(self.bn1(self.fc1(x)))))
-      mode_probs = mu[:, -self.n_modes:].clone()
-
-      sigma = sigma[:, :-self.n_modes]
-      mu = mu[:, :-self.n_modes]
-      x = torch.cat((pi, sigma, mu), 1)
-    else:
-      x = self.fc2(self.fc1(x))
-      mode_probs = x[:, -self.n_modes:].clone()
-      x = x[:, :-self.n_modes]
+    x = self.fc2(self.fc1(x))
+    mode_probs = x[:, -self.n_modes:].clone()
+    x = x[:, :-self.n_modes]
 
     # normalize the probabilities to sum to 1 for inference
     if not self.training:
@@ -41,7 +33,7 @@ class PathPlanner(nn.Module):
   def __init__(self, n_paths=5, use_mdn=True):
     super(PathPlanner, self).__init__()
     self.n_paths = n_paths
-    effnet = efficientnet_b2(pretrained=True)
+    effnet = efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
     self.vision = nn.Sequential(*(list(effnet.children())[:-1]))
     #del self.vision.classifier
     """
@@ -76,7 +68,7 @@ class PathPlannerRNN(nn.Module):
   def __init__(self, hidden_size, n_layers=2, n_paths=5, use_mdn=False):
     super(PathPlannerRNN, self).__init__()
     self.n_paths = n_paths
-    effnet = efficientnet_b2(pretrained=True)
+    effnet = efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
     
     # TODO: freeze during RL (+ explore = 0)
     # representation function
@@ -119,8 +111,11 @@ def save_model(path, model):
  torch.save(model.state_dict(), path)
  print("Model saved at", path)
 
-def load_model(path, model):
-  model.load_state_dict(torch.load(path))
+def load_model(path, model, cpu=False):
+  if cpu:
+    model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
+  else:
+    model.load_state_dict(torch.load(path))
   print("Loaded model from", path)
   return model
 
