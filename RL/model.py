@@ -105,6 +105,14 @@ class PathPlannerRNN(nn.Module):
     return num_features
 
 
+class CriticModel(nn.Module):
+  def __init__(self):
+    pass
+
+  def forward(self, x):
+    pass
+
+
 # ===========================
 
 def save_model(path, model):

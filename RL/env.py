@@ -28,13 +28,14 @@ class CarlaEnv:
     self.model_img = np.zeros((H, W, 3))
 
     self.collision_history = []
+    self.lane_invasion_history = []
     self.actor_list = []
 
     # spawn car
     self.spawn_point = random.choice(self.world.get_map().get_spawn_points())
     self.vehicle = self.world.spawn_actor(self.vehicle_bp, self.spawn_point)
     self.actor_list.append(self.vehicle)
-    print("[*] Vehicle Spawned")
+    print("[+] Vehicle Spawned")
 
     # spawn camera
     camera_bp = self.bp_lib.find('sensor.camera.rgb')
@@ -47,7 +48,7 @@ class CarlaEnv:
     self.camera = self.world.spawn_actor(camera_bp, spawn_point, attach_to=self.vehicle)
     self.actor_list.append(self.camera)
     self.camera.listen(self.process_img)
-    print("[*] Camera Spawned")
+    print("[+] Camera Spawned")
 
     # needed for vehicle initialization
     self.vehicle.apply_control(carla.VehicleControl(throttle=0.0, brake=0.0))
@@ -58,9 +59,15 @@ class CarlaEnv:
     self.collision_sensor = self.world.spawn_actor(self.collision_sensor_bp, spawn_point, attach_to=self.vehicle)
     self.actor_list.append(self.collision_sensor)
     self.collision_sensor.listen(lambda event: self.handle_collision_data(event))
-    print("[*] Collision Sensor Spawned")
+    print("[+] Collision Sensor Spawned")
 
-    while self.camera is None:
+    self.lane_invasion_sensor_bp = self.bp_lib.find('sensor.other.lane_invasion')
+    sensor_transform = carla.Transform(carla.Location(x=0.5, z=1.5))
+    self.lane_invasion_sensor = self.world.spawn_actor(self.lane_invasion_sensor_bp, sensor_transform, attach_to=self.vehicle)
+    self.lane_invasion_sensor.listen(lambda event: self.handle_lane_invasion_data(event))
+    print("[+] Lane-Invasion Sensor Spawned")
+
+    while self.camera is None and self.vehicle is None and self.collision_sensor is None or self.lane_invasion_sensor is None:
       time.sleep(0.01)
 
     # Enable synchronous mode
@@ -93,7 +100,10 @@ class CarlaEnv:
     if len(self.collision_history) != 0:
       done = True
       reward = CRASH_REWARD
-      print("[-] Crashed")
+    elif len(self.lane_invasion_history) != 0:
+      done = False
+      reward = LANE_INVASION_REWARD
+      self.lane_invasion_history = []
     # prevent car from driving in circles
     # elif kmh < 50:
     #   done = False
@@ -105,10 +115,9 @@ class CarlaEnv:
 
     if self.episode_start + EPISODE_LENGTH < time.time():
       done = True
-      print("[*] Episode done")
 
     if SYNC:
-      for i in range(STEP_TICKS):
+      for _ in range(STEP_TICKS):
         self.world.tick()
 
     # return next observation, reward, done, extra_info
@@ -131,9 +140,13 @@ class CarlaEnv:
   def handle_collision_data(self, event):
     self.collision_history.append(event)
 
+  def handle_lane_invasion_data(self, event):
+    self.lane_invasion_history.append(event)
+
   def destroy_agents(self):
     for actor in self.actor_list:
-      actor.destroy()
+      if actor.is_alive:
+        actor.destroy()
 
 
 if __name__ == "__main__":

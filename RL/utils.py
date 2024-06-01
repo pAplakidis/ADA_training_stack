@@ -2,7 +2,7 @@
 # ENV
 MAP_IDX = 3 # Town04
 SYNC = True
-STEP_TICKS = 10
+STEP_TICKS = 10 # tick updates frames, so if we are running synchronous we need to skip some frames
 
 # display image shape
 IMG_WIDTH = 1164
@@ -10,9 +10,10 @@ IMG_HEIGHT = 874
 
 
 SHOW_DISPLAY = False
-EPISODE_LENGTH = 20
+EPISODE_LENGTH = 30
 
 CRASH_REWARD = -200
+LANE_INVASION_REWARD = -50
 SPEED_REWARD = -1
 BASIC_REWARD = 1
 
@@ -22,6 +23,7 @@ BASIC_REWARD = 1
 MODEL_NAME = "ADA"
 W, H = 224, 224 # model image shape
 MODEL_PATH = "models/path_planner_gru.pt"
+MODEL_SAVE_PATH = MODEL_PATH.split('.')[0] + "_rl.pt"
 N_FRAMES = 5
 HIDDEN_SIZE = 500
 N_GRU_LAYERS = 3
@@ -42,7 +44,7 @@ TRAINING_BATCH_SIZE = MINIBATCH_SIZE // 4
 UPDATE_TARGET_EVERY = 5 # update target model every N episodes (TODO: might not be needed for policy gradient)
 MEMORY_FRACTION = 0.8 # for GPU memory usage
 
-EPISODES = 100
+EPISODES = 1000 # about 8-9 hrs
 
 DISCOUNT = 0.99
 # TODO: might not be needed

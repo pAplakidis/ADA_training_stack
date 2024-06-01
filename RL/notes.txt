@@ -13,11 +13,15 @@ lecture - reinforcement-intro.pdf:
 lecture - practical_deep_RL.pdf:
 - policy gradients for trajectories (14)
 
+Planning with Reinforcement Learning - [ https://www.youtube.com/watch?v=T39xkKN7uwo ]
+
+Actor-Critic Reinforcement for continuous actions! - [ https://www.youtube.com/watch?v=Wj_5usZyb0M ]
+
 general:
 - observation (o) comes from CNN latent space + desire => state (s)
 - temporal perceptions comes from RNN latent space
 - action (a) comes from policy network (π)
-- a = best_trajectory
+- a = best_trajectory => steering angle
 
 loss = -sum(R(τ)) (just optimize best trajectory)
 loss = sum(log(best_traj_prob) * R(τ)) (for regression + classification (?))
