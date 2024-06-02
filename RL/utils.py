@@ -1,4 +1,3 @@
-
 # ENV
 MAP_IDX = 3 # Town04
 SYNC = True
@@ -25,8 +24,11 @@ W, H = 224, 224 # model image shape
 MODEL_PATH = "models/path_planner_gru.pt"
 MODEL_SAVE_PATH = MODEL_PATH.split('.')[0] + "_rl.pt"
 N_FRAMES = 5
+
+# model hyperparameters
 HIDDEN_SIZE = 500
 N_GRU_LAYERS = 3
+LR = 1e-4
 
 # for path post-processing
 N_MODES = 5 # number of trajectories from model output
