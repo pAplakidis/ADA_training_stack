@@ -107,20 +107,17 @@ class DrivingAgent:
       trajectories, modes = _get_trajectory_and_modes(out)
       critic_value = self.critic_model(current_states, DES, out)
 
-      # FIXME: getting nan
-      t.write(modes)
-      t.write(discounted_rewards)
       actor_loss = -torch.log(torch.max(modes, dim=1).values) * discounted_rewards
-      actor_loss = actor_loss.mean()
       critic_loss = F.smooth_l1_loss(critic_value.squeeze(1), discounted_rewards)
       loss = actor_loss + critic_loss
 
+      loss = loss.mean()
       loss.backward()
       self.optim.step()
 
-      actor_losses.append(actor_loss.item())
-      critic_losses.append(critic_loss.item())
-      losses.append(loss.item())
+      actor_losses.append(actor_loss.mean().item())
+      critic_losses.append(critic_loss.mean().item())
+      losses.append(loss.mean().item())
       t.set_description("R(τ): %.2f - actor_loss: %.2f - critic_loss: %.2f - total_loss: %.2f"%(discounted_rewards.mean().item(), actor_loss.item(), critic_loss.item(), loss.item()))
 
     self.writer.add_scalar("epoch actor loss", np.array(actor_losses).mean(), steps_cnt)
@@ -138,7 +135,7 @@ class DrivingAgent:
     return torch.as_tensor(final_rewards)
 
 
-# TODO: multiple maps
+# TODO: multiple maps + weathers + time of day
 def run(id, carla_instance, show_preview=SHOW_DISPLAY, model_path=MODEL_PATH, train=True):
   fig = go.FigureWidget()
   fig.update_layout(xaxis_range=[-50,50])
