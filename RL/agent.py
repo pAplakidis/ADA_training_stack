@@ -117,8 +117,8 @@ class DrivingAgent:
 
       actor_losses.append(actor_loss.mean().item())
       critic_losses.append(critic_loss.mean().item())
-      losses.append(loss.mean().item())
-      t.set_description("R(τ): %.2f - actor_loss: %.2f - critic_loss: %.2f - total_loss: %.2f"%(discounted_rewards.mean().item(), actor_loss.item(), critic_loss.item(), loss.item()))
+      losses.append(loss.item())
+      t.set_description("R(τ): %.2f - actor_loss: %.2f - critic_loss: %.2f - total_loss: %.2f"%(discounted_rewards.mean().item(), actor_loss.mean().item(), critic_loss.mean().item(), loss.item()))
 
     self.writer.add_scalar("epoch actor loss", np.array(actor_losses).mean(), steps_cnt)
     self.writer.add_scalar("epoch critic loss", np.array(critic_losses).mean(), steps_cnt)
