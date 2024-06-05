@@ -69,8 +69,11 @@ class PathPlannerRNN(nn.Module):
     super(PathPlannerRNN, self).__init__()
     self.n_paths = n_paths
     effnet = efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
+
+    # freeze during RL (+ explore = 0, i.e. always on-policy)
+    for param  in effnet.parameters():
+      param.requires_grad = False
     
-    # TODO: freeze during RL (+ explore = 0)
     # representation function
     self.vision = nn.Sequential(*(list(effnet.children())[:-1]))
 
@@ -93,8 +96,8 @@ class PathPlannerRNN(nn.Module):
       feats.append(x.unsqueeze(1))
     x = torch.cat(feats, dim=1)
 
-    lstm_out, _ = self.dynamics(x)
-    out = self.policy(lstm_out[:, -1, :])
+    temporal_out, _ = self.dynamics(x)
+    out = self.policy(temporal_out[:, -1, :])
     return out
   
   def num_flat_features(self, x):
@@ -105,12 +108,39 @@ class PathPlannerRNN(nn.Module):
     return num_features
 
 
+# input: sequence of frames, car desire (state), actor model output - probs + trajectories (action)
+# output: Q-value of (state, action)
 class CriticModel(nn.Module):
-  def __init__(self):
-    pass
+  def __init__(self, vision_backbone, hidden_size, n_paths=2, n_layers=2):
+    super(CriticModel, self).__init__()
 
-  def forward(self, x):
-    pass
+    self.vision = vision_backbone
+    self.dynamics = nn.GRU(1411, hidden_size, n_layers, batch_first=True) # GRU for speed
+    self.value_head = nn.Linear(hidden_size + 2005, 1)
+
+  def forward(self, x_3d, desire, model_action):
+    # handle feats like driving model
+    feats = []
+    for t in range(x_3d.size(1)):
+      x = self.vision(x_3d[:, t, :, :, :])
+      x = x.view(-1, self.num_flat_features(x))
+      x = torch.cat((x, desire), 1)
+      feats.append(x.unsqueeze(1))
+    x = torch.cat(feats, dim=1)
+
+    temporal_out, _ = self.dynamics(x)
+
+    # calculate Q-value
+    x = torch.cat((temporal_out[:, -1, :], model_action), 1)
+    value = self.value_head(x)
+    return value
+
+  def num_flat_features(self, x):
+    size = x.size()[1:] # all dimensions except the batch dimension
+    num_features = 1
+    for s in size:
+      num_features *= s
+    return num_features
 
 
 # ===========================

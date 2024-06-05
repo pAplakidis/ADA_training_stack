@@ -89,13 +89,11 @@ class CarlaEnv:
     return self.camera
 
   def step(self, steering_angle):
-    # TODO: get action/control input from model (forward to model, get steering angle)
     self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=steering_angle))
 
     v = self.vehicle.get_velocity()
     kmh = int(3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))
 
-    # TODO: define values in utils
     # crashed
     if len(self.collision_history) != 0:
       done = True

@@ -15,8 +15,9 @@ from torch.utils.tensorboard import SummaryWriter
 from model import *
 from utils import *
 from env import CarlaEnv
-from loss import *
 from mtp_utils import _get_trajectory_and_modes, calc_steering_angle
+
+TRAIN = True
 
 def _figshow(fig):
   buf = io.BytesIO()
@@ -29,10 +30,10 @@ def _figshow(fig):
 
 class DrivingAgent:
   def __init__(self, id, show_display=False):
-    # self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     self.id = id
     self.show_display = show_display
 
+    # self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     self.device = torch.device("cpu") # NOTE: CARLA takes GPU, making CUDA unavailable for training
     print("[+] Using device:", self.device)
 
@@ -41,17 +42,15 @@ class DrivingAgent:
     self.K = 0.1
 
     # load pretrained actor model
-    self.actor_model = PathPlannerRNN(HIDDEN_SIZE, N_GRU_LAYERS)
+    self.actor_model = PathPlannerRNN(HIDDEN_SIZE, n_layers=N_GRU_LAYERS)
     self.actor_model = load_model(MODEL_PATH, self.actor_model, cpu=True)
     self.actor_model.to(self.device)
-    # TODO: train alongside critic model
+
     # init critic model
-    # self.critic_model = CriticModel()
-    # self.critic_model.to(self.device)
+    self.critic_model = CriticModel(self.actor_model.vision, HIDDEN_SIZE, n_layers=N_GRU_LAYERS)
+    self.critic_model.to(self.device)
 
-    self.loss_func = MTPLoss(N_MODES)
-    self.actor_optim = torch.optim.Adam(self.actor_model.parameters(), lr=LR) # TODO: check out RMSProp
-
+    self.optim = torch.optim.Adam(self.actor_model.parameters(), lr=LR)
     self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
     self.writer = SummaryWriter(f"runs/{MODEL_NAME}-{datetime.now()}-{int(time.time())}-BS_{MINIBATCH_SIZE}-LR_{LR}-HS_{HIDDEN_SIZE}-N_GRU_{N_GRU_LAYERS}")
 
@@ -62,6 +61,8 @@ class DrivingAgent:
       self.actor_model.eval()
       DES = torch.as_tensor(self.desire).unsqueeze(0).float().to(self.device)
       out = self.actor_model(frames, DES)
+      
+      critic_value = self.critic_model(frames, DES, out)
 
       trajectories, modes = _get_trajectory_and_modes(out)
       trajectories = trajectories.cpu().numpy()
@@ -73,6 +74,7 @@ class DrivingAgent:
 
       steering_angle = self.K * calc_steering_angle(xy_path[0], xy_path[10])
       print(f"[agent]: steering_angle={steering_angle}")
+      print(f"[critic]: value={critic_value.item()}")
 
     return steering_angle, xy_path
 
@@ -82,12 +84,14 @@ class DrivingAgent:
 
   def train(self, steps_cnt):
     if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
-    # if len(self.replay_memory) < 2 * MINIBATCH_SIZE or len(self.replay_memory) % MINIBATCH_SIZE == 0:
+    # if len(self.replay_memory) < 2 * MINIBATCH_SIZE:
       return
     
     print("[*] Training agent")
     self.actor_model.train()
     actor_losses = []
+    critic_losses = []
+    losses = []
     for i in (t := trange(0, len(self.replay_memory), MINIBATCH_SIZE)):
       minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
 
@@ -95,30 +99,33 @@ class DrivingAgent:
       # state_shape = (batch_size, n_frames, C, H, W)
       current_states = torch.as_tensor(np.array([transition[0] for transition in minibatch])).float().to(self.device)
       rewards = torch.as_tensor(np.array([transition[2] for transition in minibatch])).float().to(self.device)
-      print(rewards.shape)
-      print(current_states.shape)
-      discounted_reward = self.calc_reward(rewards, DISCOUNT)
+      discounted_rewards = self.calc_reward(rewards, DISCOUNT)
 
-      self.actor_optim.zero_grad()
+      self.optim.zero_grad()
       DES = torch.as_tensor(self.desire).repeat(MINIBATCH_SIZE, 1).float().to(self.device)
       out = self.actor_model(current_states, DES)
-
       trajectories, modes = _get_trajectory_and_modes(out)
-      # xy_path = trajectories[0][0]
-      # for idx, pred_path in enumerate(trajectories[0]):
-      #   if modes[0][idx] == np.max(modes.detach().cpu().numpy()[0]):
-      #     xy_path = trajectories[0][idx]
+      critic_value = self.critic_model(current_states, DES, out)
 
-      print(modes.shape, discounted_reward.shape)
-      actor_loss = -torch.log(torch.max(modes, dim=1).values) * discounted_reward  # FIXME: this is the loss for path classification, we also need trajectory loss
+      # FIXME: getting nan
+      t.write(modes)
+      t.write(discounted_rewards)
+      actor_loss = -torch.log(torch.max(modes, dim=1).values) * discounted_rewards
       actor_loss = actor_loss.mean()
-      actor_loss.backward()
-      self.actor_optim.step()
+      critic_loss = F.smooth_l1_loss(critic_value.squeeze(1), discounted_rewards)
+      loss = actor_loss + critic_loss
+
+      loss.backward()
+      self.optim.step()
 
       actor_losses.append(actor_loss.item())
-      t.set_description("R(τ): %.2f - actor_loss: %.2f"%(discounted_reward.mean().item(), actor_loss.item()))
+      critic_losses.append(critic_loss.item())
+      losses.append(loss.item())
+      t.set_description("R(τ): %.2f - actor_loss: %.2f - critic_loss: %.2f - total_loss: %.2f"%(discounted_rewards.mean().item(), actor_loss.item(), critic_loss.item(), loss.item()))
 
-    self.writer.add_scalar("episode actor loss", np.array(actor_losses).mean(), steps_cnt)
+    self.writer.add_scalar("epoch actor loss", np.array(actor_losses).mean(), steps_cnt)
+    self.writer.add_scalar("epoch critic loss", np.array(critic_losses).mean(), steps_cnt)
+    self.writer.add_scalar("epoch total loss", np.array(losses).mean(), steps_cnt)
     self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
 
   @staticmethod
@@ -197,12 +204,11 @@ def run(id, carla_instance, show_preview=SHOW_DISPLAY, model_path=MODEL_PATH, tr
         agent.writer.add_scalar("running reward", reward, total_step_cnt)
 
         if done:
-          print("[*] Episode done")
+          print(f"[*] Episode done - Episode Reward: {sum(episode_rewards)} - Total Steps: {total_step_cnt}")
           env.destroy_agents()
           break
 
         # prepare next step
-        # agent.update_replay_memory()
         next_action, xy_path = agent.get_action(frames)
         prev_observation = observation_frames.copy()
 
@@ -210,16 +216,19 @@ def run(id, carla_instance, show_preview=SHOW_DISPLAY, model_path=MODEL_PATH, tr
         total_step_cnt += 1
         time.sleep(1)
 
-      agent.writer.add_scalar("episode reward", np.array(episode_rewards).sum(), episode)
+      agent.writer.add_scalar("episode reward", sum(episode_rewards), episode)
       all_rewards.append(episode_rewards)
-      agent.train(total_step_cnt)
+      if train:
+        agent.train(total_step_cnt)
   except KeyboardInterrupt:
     print("[~] Training stopped by user")
 
   env.destroy_agents()
   cv2.destroyAllWindows()
-  save_model(MODEL_SAVE_PATH, agent.actor_model)
+  save_model(ACTOR_MODEL_SAVE_PATH, agent.actor_model)
+  save_model(CRITIC_MODEL_SAVE_PATH, agent.critic_model)
 
 
 if __name__ == "__main__":
-  run(0, None)
+  print(f"[+] Mode: {'TRAIN' if TRAIN else 'PLAY'}")
+  run(0, None, train=TRAIN)

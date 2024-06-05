@@ -22,7 +22,8 @@ BASIC_REWARD = 1
 MODEL_NAME = "ADA"
 W, H = 224, 224 # model image shape
 MODEL_PATH = "models/path_planner_gru.pt"
-MODEL_SAVE_PATH = MODEL_PATH.split('.')[0] + "_rl.pt"
+ACTOR_MODEL_SAVE_PATH = MODEL_PATH.split('.')[0] + "_rl.pt"
+CRITIC_MODEL_SAVE_PATH = MODEL_PATH.split('.')[0] + "_rl_CRITIC.pt"
 N_FRAMES = 5
 
 # model hyperparameters
