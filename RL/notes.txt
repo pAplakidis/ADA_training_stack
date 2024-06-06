@@ -15,6 +15,8 @@ lecture - practical_deep_RL.pdf:
 
 Planning with Reinforcement Learning - [ https://www.youtube.com/watch?v=T39xkKN7uwo ]
 
+Policy with Continuous Actions - [ https://medium.com/geekculture/policy-based-methods-for-a-continuous-action-space-7b5ecffac43a ]
+
 Actor-Critic Reinforcement for continuous actions! - [ https://www.youtube.com/watch?v=Wj_5usZyb0M ]
 
 general:

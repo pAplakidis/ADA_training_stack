@@ -17,7 +17,8 @@ from utils import *
 from env import CarlaEnv
 from mtp_utils import _get_trajectory_and_modes, calc_steering_angle
 
-TRAIN = True
+TRAIN = False
+SHOW_DISPLAY = not TRAIN
 
 def _figshow(fig):
   buf = io.BytesIO()
@@ -29,7 +30,7 @@ def _figshow(fig):
 
 
 class DrivingAgent:
-  def __init__(self, id, show_display=False):
+  def __init__(self, id, show_display=False, train=True):
     self.id = id
     self.show_display = show_display
 
@@ -39,16 +40,18 @@ class DrivingAgent:
 
     # path planner + controller parameters
     self.desire = np.array([1.0, 0.0, 0.0])  # only forward for now
-    self.K = 0.1
+    self.K = 0.1    # constant for the steering wheel controller
 
     # load pretrained actor model
     self.actor_model = PathPlannerRNN(HIDDEN_SIZE, n_layers=N_GRU_LAYERS)
-    self.actor_model = load_model(MODEL_PATH, self.actor_model, cpu=True)
+    self.actor_model = load_model(MODEL_PATH if train else ACTOR_MODEL_SAVE_PATH, self.actor_model, cpu=True)
     self.actor_model.to(self.device)
 
     # init critic model
     self.critic_model = CriticModel(self.actor_model.vision, HIDDEN_SIZE, n_layers=N_GRU_LAYERS)
     self.critic_model.to(self.device)
+    if not train:
+      self.critic_model = load_model(CRITIC_MODEL_SAVE_PATH, self.critic_model)
 
     self.optim = torch.optim.Adam(self.actor_model.parameters(), lr=LR)
     self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
@@ -141,7 +144,7 @@ def run(id, carla_instance, show_preview=SHOW_DISPLAY, model_path=MODEL_PATH, tr
   fig.update_layout(xaxis_range=[-50,50])
   fig.update_layout(yaxis_range=[0,50])
 
-  agent = DrivingAgent(id)
+  agent = DrivingAgent(id, train=TRAIN)
   xy_path = np.zeros((TRAJECTORY_LENGTH, N_COORDINATES))
 
   all_rewards = []
