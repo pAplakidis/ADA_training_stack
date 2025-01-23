@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+import os
 from torch.utils.data import DataLoader, random_split
 
-from model import *
-from dataset import *
-from trainer import *
+from config import *
 from util import *
+
+from datasets.multi_video_dataset import MultiVideoDataset
+from trainer import Trainer
 
 # EXAMPLE USAGE: MODEL_PATH="models/path_planner.pt" WRITER_PATH="runs/test_1" ./train.py
 
@@ -22,45 +24,20 @@ if __name__ == "__main__":
   print("[+] Using device:", device)
 
   # define/select model
-  # model = PathPlanner(use_mdn=USE_MDN)
-  # model = ComboModel(use_mdn=USE_MDN)
-  # model = SuperComboModel(n_layers=N_GRU_LAYERS)
-  model = PathPlannerRNN(HIDDEN_SIZE, N_RNN_LAYERS)
   if VERBOSE: print(model)
 
-  if isinstance(model, PathPlanner):
-    print("[+] Using model: Pathplanner")
-    use_rnn = False
-    combo = False
-    custom_collate = custom_collate_pathplanner
-  elif isinstance(model, PathPlannerRNN):
-    use_rnn = True
-    combo = False
-    custom_collate = custom_collate_pathplanner_lstm
-  elif isinstance(model, ComboModel):
-    print("[+] Using model: ComboModel")
-    use_rnn = False
-    combo = True
-    custom_collate = custom_collate_combomodel
-  elif isinstance(model, SuperComboModel):
-    print("[+] Using model: SuperComboModel")
-    use_rnn = True
-    combo = True
-    custom_collate = custom_collate_combomodel
-  else:
-    print("Model not recognized!")
-    exit(1)
-
   # get data
-  dataset = MultiVideoDataset("../data/sim/train/", multi_frames=use_rnn, combo=combo)
+  dataset = MultiVideoDataset("../data/sim/train/", multi_frames=USE_RNN, combo=COMBO)
   train_split = int(len(dataset)*0.7) # 70% training data
   val_split = int(len(dataset)*0.3)   # 30% validation data
   train_set, val_set = random_split(dataset, [train_split+1, val_split])
-  train_loader = DataLoader(train_set, batch_size=BS, shuffle=True, num_workers=N_WORKERS, collate_fn=custom_collate, pin_memory=True)
-  val_loader = DataLoader(val_set, batch_size=BS, shuffle=True, num_workers=N_WORKERS, collate_fn=custom_collate, pin_memory=True)
+
+  # loaders
+  train_loader = DataLoader(train_set, batch_size=BS, shuffle=True, num_workers=N_WORKERS, collate_fn=CUSTOM_COLLATE, pin_memory=True)
+  val_loader = DataLoader(val_set, batch_size=BS, shuffle=True, num_workers=N_WORKERS, collate_fn=CUSTOM_COLLATE, pin_memory=True)
 
   # train model
-  trainer = Trainer(device, model, train_loader, val_loader, model_path, writer_path, use_rnn=use_rnn, combo=combo)
+  trainer = Trainer(device, model, train_loader, val_loader, model_path, writer_path, USE_RNN=USE_RNN, combo=COMBO)
   trainer.train(epochs=EPOCHS, lr=LR, use_mdn=USE_MDN)
 
   #dataset.cap.release()

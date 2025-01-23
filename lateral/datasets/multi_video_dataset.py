@@ -3,123 +3,16 @@ import os
 import cv2
 import random
 import numpy as np
-
 import plotly.graph_objects as go
-
-import torch
 from torch.utils.data import Dataset
 
 from util import *
 from model import *
-from renderer import *
+# from renderer import *
 
 # display resolution
 d_W = 1920 // 2
 d_H = 1080 // 2
-
-
-class PathPlannerDataset(Dataset):
-  def __init__(self, base_dir):
-    super(Dataset, self).__init__()
-    self.base_dir = base_dir
-    self.video_path = base_dir + "video.mp4"
-    self.poses_path = base_dir + "poses.npy"
-    self.framepath_path = base_dir + "frame_paths.npy"
-
-    # load meta-data (poses, paths, etc)
-    self.poses = np.load(self.poses_path)
-    self.frame_paths = np.load(self.framepath_path)
-    self.local_poses, self.local_path, self.local_orientations = get_relative_poses(self.poses)
-    #print(self.local_path.shape)
-    print("Frame Paths (2D):", self.frame_paths.shape)
-
-    # load video
-    self.cap = cv2.VideoCapture(self.video_path)
-
-  def __len__(self):
-    return int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT)) - LOOKAHEAD
-
-  def __getitem__(self, idx):
-    #self.cap.set(cv2.CAP_PROP_POS_FRAMES, idx-1)
-    self.cap.set(1, idx)
-    ret, frame = self.cap.read()
-    frame = cv2.resize(frame, (W,H))
-    frame = np.moveaxis(frame, -1, 0)
-    # TODO: use path for now, later on predict poses
-    # TODO: this is a tempfix, we need to cleanup data (either check for nan during data-collection or training)
-    if np.isnan(self.frame_paths[idx]).any():
-      self.frame_paths[idx] = np.zeros_like(self.frame_paths[idx])
-    return {"image": frame, "path": self.frame_paths[idx]}
-
-
-# BUG: WHEN USING MDN: getting nan from loss, meaning some tensors return nan here
-#      (not due to race condition, this code is the problem)... FIX
-# TODO: modify this (switch between single/multi-frame for RNN)
-def custom_collate_pathplanner(batch):
-  collated_batch = {
-    "image": [],
-    "path": torch.stack([torch.tensor(sample["path"]) for sample in batch]),
-    "desire": torch.stack([torch.tensor(sample["desire"]) for sample in batch]),
-  }
-
-  for item in batch:
-    frame = load_frame(item)
-    collated_batch["image"].append(frame)
-  collated_batch["image"] = torch.stack([torch.tensor(frame) for frame in collated_batch["image"]])
-
-  return collated_batch
-
-def custom_collate_pathplanner_lstm(batch):
-  collated_batch = {
-    "images": [],
-    "path": torch.stack([torch.tensor(sample["path"]) for sample in batch]),
-    "desire": torch.stack([torch.tensor(sample["desire"]) for sample in batch]),
-  }
-
-  for item in batch:
-    frames = load_frames(item)
-    collated_batch["images"].append(frames)
-  collated_batch["images"] = torch.stack([torch.tensor(np.array(frame)) for frame in collated_batch["images"]])
-
-  return collated_batch
-
-def custom_collate_combomodel(batch):
-  collated_batch = {
-    "image": [],
-    "path": torch.stack([torch.tensor(sample["path"]) for sample in batch]),
-    "desire": torch.stack([torch.tensor(sample["desire"]) for sample in batch]),
-    "crossroad": torch.stack([torch.tensor(sample["crossroad"]) for sample in batch])
-  }
-
-  for item in batch:
-    frame = load_frame(item)
-    collated_batch["image"].append(frame)
-  collated_batch["image"] = torch.stack([torch.tensor(frame) for frame in collated_batch["image"]])
-
-  return collated_batch
-
-def load_frame(item):
-  cap = cv2.VideoCapture(item["video_path"])
-  cap.set(cv2.CAP_PROP_POS_FRAMES, item["framenum"])
-  _, frame = cap.read()
-  frame = cv2.resize(frame, (W, H))
-  frame = np.moveaxis(frame, -1, 0)
-  return frame
-
-# TODO: spread out the frames (rate too high, frames too similar)
-def load_frames(item):
-  cap = cv2.VideoCapture(item["video_path"])
-  cap.set(cv2.CAP_PROP_POS_FRAMES, item["framenum"]-N_FRAMES)
-  frames = []
-  for _ in range(N_FRAMES):
-    ret, frame = cap.read()
-    if not ret:
-      break
-
-    frame = cv2.resize(frame, (W, H))
-    frame = np.moveaxis(frame, -1, 0)
-    frames.append(frame)
-  return frames
 
 
 class MultiVideoDataset(Dataset):

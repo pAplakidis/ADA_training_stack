@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import cv2
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -9,16 +8,18 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.optim.lr_scheduler as lr_scheduler
 
 from util import *
-from model import *
-from renderer import *
-from loss import *
+from model.model_utils import *
+from loss.mtp_loss import MTPLoss
+from loss.combo_loss import ComboLoss
 
+# TODO: cleanup - different trainers/files for each model and dataset
 class Trainer:
   def __init__(self, device, model, train_loader, val_loader, model_path, writer_path=None, eval_epoch=False, use_rnn=False, combo=True):
     self.use_rnn = use_rnn  # switch training RNN or CNN
     self.combo = combo      # switch PathPlanner or ComboModel/multitask
     self.eval_epoch = eval_epoch
     self.model_path = model_path
+
     if not writer_path:
       today = str(datetime.now())
       writer_path = "runs/" + today
@@ -177,4 +178,3 @@ class Trainer:
   
     self.writer.close()
     return self.model
-

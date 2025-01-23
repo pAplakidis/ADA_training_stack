@@ -4,27 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-ONEOVERSQRT2PI = 1.0 / math.sqrt(2 * math.pi)
+from .mdn_loss import mdn_loss
 
-def gaussian_probability(sigma, mu, target):
-  target = target.unsqueeze(1).expand_as(sigma)
-  ret = ONEOVERSQRT2PI * torch.exp(-0.5 * ((target - mu) / sigma) ** 2) / sigma
-  return torch.prod(ret, 2)
-
-# not used
-def MDNLoss(pi, sigma, mu, target):
-  prob = pi * gaussian_probability(sigma, mu, target)
-  nll = -torch.log(torch.sum(prob, dim=1))
-  return torch.mean(nll)
-
-# TODO: study this loss better from the paper and double-check it
-def mdn_loss(pi, sigma, mu, target):
-  exponent = -0.5 * ((target - mu) / (sigma + 1e-6)) ** 2
-  normalizer = 1.0 / (torch.sqrt(2 * torch.tensor(torch.pi, dtype=torch.float32)) * sigma)
-  pdf = normalizer * torch.exp(exponent)
-  weighted_sum = torch.sum(pi * pdf, dim=1)
-  loss = -torch.log(weighted_sum + 1e-6)
-  return torch.mean(loss)
 
 # TODO: switch from MDN to Linear
 # MTPLoss (mutliple-trajectory prediction loss), kinda like Mixture of Experts loss
@@ -169,34 +150,3 @@ class MTPLoss:
     
     avg_loss = torch.mean(batch_losses)
     return avg_loss
-
-class ComboLoss(nn.Module):
-  def __init__(self, task_num, model, device, use_mdn=True):
-    super(ComboLoss, self).__init__()
-    self.task_num = task_num  # TODO: maybe make this constant
-    self.model = model
-    self.device = device
-    self.log_vars = nn.Parameter(torch.zeros((task_num)))
-
-    self.path_loss = MTPLoss(self.model.n_paths, use_mdn=use_mdn)
-    self.cr_loss = nn.BCELoss()
-
-  def forward(self, preds, ground_truths):
-    path_pred, cr_pred = preds
-    path_gt, cr_gt = ground_truths
-
-    loss0 = self.path_loss(path_pred, path_gt)
-    loss1 = self.cr_loss(cr_pred, cr_gt)
-
-    # TODO: need better multitask loss (weighted sum maybe)
-    precision0 = torch.exp(-self.log_vars[0])
-    #loss0 = precision0*loss0 + self.log_vars[0]
-
-    precision1 = torch.exp(-self.log_vars[1])
-    #loss1 = precision1*loss1 + self.log_vars[1]
-
-    loss = loss0 + loss1
-    #loss = loss.mean()
-
-    return loss.to(self.device), loss0, loss1
-
