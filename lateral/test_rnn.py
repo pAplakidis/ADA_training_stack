@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
+import os
 import io
 import time
 import plotly.io as pio
 import plotly.express as px
 import plotly.graph_objects as go
 
-from dataset import *
-from loss import *
+import torch
+
 from util import *
-from model import *
+from lateral.configurations.config import *
+from datasets.dataset_utils import *
+from datasets.multi_video_dataset import MultiVideoDataset
+from model.path_planner_rnn import PathPlannerRNN
+from model.model_utils import *
+from loss.mtp_loss import MTPLoss
 
 # EXAMPLE USAGE: DATADIR="../data/sim/test/29/" MODEL_PATH="models/ComboModel.pt" ./test_video.py
 

@@ -16,7 +16,7 @@ d_H = 1080 // 2
 
 
 class MultiVideoDataset(Dataset):
-  def __init__(self, base_dir, multi_frames=False, combo=True, verbose=False):
+  def __init__(self, base_dir, multi_frames=False, combo=True, portion=1.0, verbose=False):
     super(Dataset, self).__init__()
     self.multi_frames = multi_frames
     self.combo = combo
@@ -30,16 +30,19 @@ class MultiVideoDataset(Dataset):
     self.crossroads_paths = []
     self.input_frames = [np.zeros((3, W, H)) for _ in range(2)] # 2 consecutive frames for GRU
 
+    folders = os.listdir(base_dir)
     if self.verbose: print("Data from:")
-    for dir in sorted(os.listdir(base_dir)):
-      prefix = self.base_dir+dir+"/"
+    for idx, dir in enumerate(sorted(folders)):
+      # FIXME: this breaks early + casuses loss to be too high
+      if portion != 1.0 and (idx+1) / len(folders) > portion: break
+
+      prefix = self.base_dir + dir + "/"
       if self.verbose: print(prefix)
 
       self.video_paths.append(prefix+"video.mp4")
       self.framepath_paths.append(prefix+"frame_paths.npy")
       self.desires_paths.append(prefix+"desires.npy")
-      if self.combo:
-        self.crossroads_paths.append(prefix+"crossroads.npy")
+      if self.combo: self.crossroads_paths.append(prefix+"crossroads.npy")
 
     # load and index actual data
     self.caps = [cv2.VideoCapture(str(video_path)) for video_path in self.video_paths]

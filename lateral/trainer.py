@@ -5,24 +5,29 @@ from datetime import datetime
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
-import torch.optim.lr_scheduler as lr_scheduler
 
 from util import *
+from configurations.config import *
 from model.model_utils import *
 from loss.mtp_loss import MTPLoss
 from loss.combo_loss import ComboLoss
 
-# TODO: cleanup - different trainers/files for each model and dataset
+# TODO: cleanup - different trainers/files for each model and dataset + switch from config
 class Trainer:
-  def __init__(self, device, model, train_loader, val_loader, model_path, writer_path=None, eval_epoch=False, use_rnn=False, combo=True):
+  def __init__(self, device, model, train_loader, val_loader, model_path, writer_path=None, eval_epoch=False, use_rnn=False, combo=True, save_checkpoints=False):
     self.use_rnn = use_rnn  # switch training RNN or CNN
     self.combo = combo      # switch PathPlanner or ComboModel/multitask
     self.eval_epoch = eval_epoch
     self.model_path = model_path
+    self.save_checkpoints = save_checkpoints
+
+    now = str(datetime.now())
+    self.experiment_name = f"{now}-BS={BS}-LR={LR}-PORTION={PORTION}"
+    self.model_dir = "/".join(model_path.split("/")[:-1])
+    self.model_name = model_path.split("/")[-1].split(".")[0]
 
     if not writer_path:
-      today = str(datetime.now())
-      writer_path = "runs/" + today
+      writer_path = os.path.join("runs", self.model_name, self.experiment_name)
     print("[TRAINER] Tensorboard output path:", writer_path)
 
     self.writer = SummaryWriter(writer_path)
@@ -32,10 +37,7 @@ class Trainer:
     self.train_loader = train_loader
     self.val_loader = val_loader
 
-  def save_checkpoint(state, path):
-    torch.save(state, path)
-    print("Checkpoint saved at", path)
-
+  # TODO: implement resume_from_checkpoint
   def train(self, epochs=100, lr=1e-4, use_mdn=False):
     NANS = 0
     #loss_func = nn.MSELoss()
@@ -76,12 +78,13 @@ class Trainer:
                 out_path = self.model(X, desire)
               loss = loss_func(out_path, Y_path)
 
-            if not torch.isnan(loss):
+            if not self.combo and not torch.isnan(loss):
               if not train:
                 self.writer.add_scalar('running evaluation loss', loss.item(), i_batch)
-
               val_losses.append(loss.item())
-            t.set_description("Eval Batch Loss: %.2f"%(loss.item()))
+              t.set_description("Eval Batch Loss: %.2f"%(loss.item()))
+            else:
+              t.set_description(f"Eval Batch Loss: {loss[0].item():.2f} - path: {loss[1].item():.2f} - cr: {loss[2].item():.2f}")
 
         except KeyboardInterrupt:
           print("[~] Evaluation stopped by user")
@@ -89,7 +92,6 @@ class Trainer:
         print("[TRAINER] Evaluation Done")
       return val_losses
 
-    # TODO: add checkpoints so that we can resume training if interrupted
     # train model
     losses = []
     vlosses = []
@@ -156,6 +158,17 @@ class Trainer:
           self.writer.add_scalar("epoch training PathPlanner loss", avg_epoch_path_plan_loss, epoch)
         print("[->] Epoch average training loss: %.4f"%(avg_epoch_loss))
         # scheduler.step()
+
+        if self.save_checkpoints:
+          save_checkpoint(
+            os.path.join(self.model_dir, self.model_name, self.experiment_name, self.model_name + f"_epoch-{epoch+1}" + ".pt"),
+            {
+              "epoch": epoch,
+              "model_state_dict": self.model.state_dict(),
+              "optimizer_state_dict": optim.state_dict(),
+              "loss": avg_epoch_loss,
+            }
+          )
 
         if self.eval_epoch:
           epoch_vlosses = eval(epoch_vlosses, train=True)

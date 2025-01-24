@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
+from .mtp import MTP
+
 
 class ComboModel(nn.Module):
   def __init__(self, n_paths=5, use_mdn=True):

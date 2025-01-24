@@ -2,13 +2,13 @@
 import random
 import io
 import plotly.io as pio
-import plotly.express as px
 import plotly.graph_objects as go
 
 from train import *
-from dataset import *
+from datasets.multi_video_dataset import MultiVideoDataset
+from model.model_utils import load_model
+from loss.mtp_loss import MTPLoss
 from util import *
-from model import *
 
 def figshow(fig):
   buf = io.BytesIO()
@@ -17,6 +17,7 @@ def figshow(fig):
   file_bytes = np.asarray(bytearray(buf.read()), dtype=np.uint8)
   img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
   cv2.imshow("Predicted Path", img)
+
 
 if __name__ == "__main__":
   device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
