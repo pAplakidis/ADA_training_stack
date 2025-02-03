@@ -18,15 +18,18 @@ from model.super_combo_model import SuperComboModel
 
 # TODO: load model from checkpoint and resume training
 
+EVAL_EPOCH = True
+
 model_path = os.getenv("MODEL_PATH")
 if model_path == None:
   model_path = "models/path_planner_desire.pt"
 print("[+] Model save path:", model_path)
 
-portion = float(os.getenv("PORTION"))
-if portion == None:
-  portion = 1.0
-print("[+] Model save path:", model_path)
+PORTION = os.getenv("PORTION")
+if PORTION == None:
+  PORTION = 1.0
+PORTION = float(PORTION)
+print(f"[*] Using {PORTION * 100}% of dataset")
 
 writer_path = os.getenv("WRITER_PATH")
 print("[+] Tensorboard Writer path:", writer_path)
@@ -73,18 +76,23 @@ if __name__ == "__main__":
     exit(1)
 
   # get data
-  dataset = MultiVideoDataset("../data/sim/train/", multi_frames=USE_RNN, combo=COMBO, portion=portion, verbose=VERBOSE)
+  dataset = MultiVideoDataset("../data/sim/train/",
+                              multi_frames=USE_RNN, combo=COMBO, portion=PORTION, verbose=VERBOSE)
   train_split = int(len(dataset)*0.7) # 70% training data
   val_split = int(len(dataset)*0.3)   # 30% validation data
   train_set, val_set = random_split(dataset, [train_split+1, val_split])
 
   # loaders
-  train_loader = DataLoader(train_set, batch_size=BS, shuffle=True, num_workers=N_WORKERS, collate_fn=CUSTOM_COLLATE, pin_memory=True)
-  val_loader = DataLoader(val_set, batch_size=BS, shuffle=True, num_workers=N_WORKERS, collate_fn=CUSTOM_COLLATE, pin_memory=True)
+  train_loader = DataLoader(train_set, batch_size=BS, shuffle=True,
+                            num_workers=N_WORKERS, collate_fn=CUSTOM_COLLATE, pin_memory=True)
+  val_loader = DataLoader(val_set, batch_size=BS, shuffle=True,
+                          num_workers=N_WORKERS, collate_fn=CUSTOM_COLLATE, pin_memory=True)
 
   # train model
-  trainer = Trainer(device, model, train_loader, val_loader, model_path, writer_path, use_rnn=USE_RNN, combo=COMBO)
-  trainer.train(epochs=EPOCHS, lr=LR, use_mdn=USE_MDN)
+  trainer = Trainer(device, model, train_loader, val_loader, model_path,
+                    writer_path, eval_epoch=EVAL_EPOCH, use_rnn=USE_RNN,
+                    use_mdn=USE_MDN, combo=COMBO, portion=PORTION)
+  trainer.train(epochs=EPOCHS, lr=LR)
 
   #dataset.cap.release()
   for cap in dataset.caps:

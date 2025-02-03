@@ -14,15 +14,18 @@ from loss.combo_loss import ComboLoss
 
 # TODO: cleanup - different trainers/files for each model and dataset + switch from config
 class Trainer:
-  def __init__(self, device, model, train_loader, val_loader, model_path, writer_path=None, eval_epoch=False, use_rnn=False, combo=True, save_checkpoints=False):
+  def __init__(self, device, model, train_loader, val_loader, model_path,
+              writer_path=None, eval_epoch=False, use_rnn=False, use_mdn=False, combo=True, portion=1.0, save_checkpoints=False):
     self.use_rnn = use_rnn  # switch training RNN or CNN
     self.combo = combo      # switch PathPlanner or ComboModel/multitask
+    self.use_mdn = use_mdn
     self.eval_epoch = eval_epoch
     self.model_path = model_path
+    self.portion = portion
     self.save_checkpoints = save_checkpoints
 
     now = str(datetime.now())
-    self.experiment_name = f"{now}-BS={BS}-LR={LR}-PORTION={PORTION}"
+    self.experiment_name = f"{now}-BS={BS}-LR={LR}-PORTION={self.portion}"
     self.model_dir = "/".join(model_path.split("/")[:-1])
     self.model_name = model_path.split("/")[-1].split(".")[0]
 
@@ -38,13 +41,13 @@ class Trainer:
     self.val_loader = val_loader
 
   # TODO: implement resume_from_checkpoint
-  def train(self, epochs=100, lr=1e-4, use_mdn=False):
+  def train(self, epochs=100, lr=1e-4):
     NANS = 0
     #loss_func = nn.MSELoss()
     if self.combo:
-      loss_func = ComboLoss(2, self.model, self.device, use_mdn=use_mdn)
+      loss_func = ComboLoss(2, self.model, self.device, use_mdn=self.use_mdn)
     else:
-      loss_func = MTPLoss(self.model.n_paths, use_mdn=use_mdn)
+      loss_func = MTPLoss(self.model.n_paths, use_mdn=self.use_mdn)
     optim = torch.optim.AdamW(self.model.parameters(), lr=lr)
     # scheduler = lr_scheduler.ExponentialLR(optim, gamma=0.99)
 

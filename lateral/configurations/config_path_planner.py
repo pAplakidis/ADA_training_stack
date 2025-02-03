@@ -5,7 +5,7 @@ PORTION = 1.0 # dataset percentage to use
 SAVE_CHECKPOINTS = False
 
 # hyperparameters
-BS = 100
+BS = 128
 EPOCHS = 30
 LR = 1e-4
 

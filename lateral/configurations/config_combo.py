@@ -1,9 +1,11 @@
 from model.combo_model import ComboModel
 
+PORTION = 1.0 # dataset percentage to use
+
 SAVE_CHECKPOINTS = False
 
 # hyperparameters
-BS = 64
+BS = 128
 EPOCHS = 10
 LR = 1e-4
 
