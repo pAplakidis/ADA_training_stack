@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import math
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -101,6 +102,7 @@ class Trainer:
     try:
       print("[TRAINER] Training ...")
       idx = 0
+      prev_min_vloss = math.inf
       for epoch in range(epochs):
         self.model.train()
         print("\n[=>] Epoch %d/%d"%(epoch+1, epochs))
@@ -162,17 +164,6 @@ class Trainer:
         print("[->] Epoch average training loss: %.4f"%(avg_epoch_loss))
         # scheduler.step()
 
-        if self.save_checkpoints:
-          save_checkpoint(
-            os.path.join(self.model_dir, self.model_name, self.experiment_name, self.model_name + f"_epoch-{epoch+1}" + ".pt"),
-            {
-              "epoch": epoch,
-              "model_state_dict": self.model.state_dict(),
-              "optimizer_state_dict": optim.state_dict(),
-              "loss": avg_epoch_loss,
-            }
-          )
-
         if self.eval_epoch:
           epoch_vlosses = eval(epoch_vlosses, train=True)
           avg_epoch_vloss = np.array(epoch_vlosses).mean()
@@ -180,6 +171,18 @@ class Trainer:
           # TODO: custom plot on the same figure as final training losses
           self.writer.add_scalar('epoch evaluation loss', avg_epoch_vloss, epoch)
           print("[->] Epoch average evaluation loss: %.4f"%(avg_epoch_vloss))
+
+        if self.save_checkpoints and avg_epoch_vloss < prev_min_vloss:
+          prev_min_vloss = avg_epoch_vloss
+          save_checkpoint(
+            os.path.join(self.model_dir, self.model_name, self.experiment_name, self.model_name + "_best.pt"),
+            {
+              "epoch": epoch,
+              "model_state_dict": self.model.state_dict(),
+              "optimizer_state_dict": optim.state_dict(),
+              "loss": avg_epoch_loss,
+            }
+          )
 
     except KeyboardInterrupt:
       print("[~] Training stopped by user")

@@ -1,15 +1,10 @@
-from model.combo_model import ComboModel
-
-PORTION = 1.0 # dataset percentage to use
-
-SAVE_CHECKPOINTS = False
+from model.path_planner import PathPlanner
 
 # hyperparameters
-BS = 128
-EPOCHS = 10
+BS = 100
+EPOCHS = 30
 LR = 1e-4
 
-N_WORKERS = 8
 USE_MDN = False
 
-model = ComboModel(use_mdn=USE_MDN)
+model = PathPlanner(use_mdn=USE_MDN)

@@ -5,8 +5,6 @@ __pycache__/
 models/
 plots/
 
-lateral/runs/
 lateral/models/
-RL/runs/
 RL/models/
 

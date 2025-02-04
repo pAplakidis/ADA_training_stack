@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import psutil
 from torch.utils.data import DataLoader, random_split
 
 from configurations.config import *
@@ -16,9 +17,14 @@ from model.super_combo_model import SuperComboModel
 # EXAMPLE USAGE: 
 # cp ./configurations/config_path_planner.py ./configurations/config.py && MODEL_PATH="models/path_planner.pt" WRITER_PATH="runs/test_1" ./train.py
 
-# TODO: load model from checkpoint and resume training
+# TODO: load model from checkpoint and resume training ("RESUME_FROM")
 
+# change depending on hardware
+n_cores = psutil.cpu_count(logical=False)
+PREFETCH_FACTOR = n_cores
+N_WORKERS = n_cores
 EVAL_EPOCH = True
+SAVE_CHECKPOINTS = True
 
 model_path = os.getenv("MODEL_PATH")
 if model_path == None:
@@ -83,15 +89,15 @@ if __name__ == "__main__":
   train_set, val_set = random_split(dataset, [train_split+1, val_split])
 
   # loaders
-  train_loader = DataLoader(train_set, batch_size=BS, shuffle=True,
+  train_loader = DataLoader(train_set, batch_size=BS, shuffle=True, prefetch_factor=PREFETCH_FACTOR,
                             num_workers=N_WORKERS, collate_fn=CUSTOM_COLLATE, pin_memory=True)
-  val_loader = DataLoader(val_set, batch_size=BS, shuffle=True,
+  val_loader = DataLoader(val_set, batch_size=BS, shuffle=True, prefetch_factor=PREFETCH_FACTOR,
                           num_workers=N_WORKERS, collate_fn=CUSTOM_COLLATE, pin_memory=True)
 
   # train model
   trainer = Trainer(device, model, train_loader, val_loader, model_path,
                     writer_path, eval_epoch=EVAL_EPOCH, use_rnn=USE_RNN,
-                    use_mdn=USE_MDN, combo=COMBO, portion=PORTION)
+                    use_mdn=USE_MDN, combo=COMBO, portion=PORTION, save_checkpoints=SAVE_CHECKPOINTS)
   trainer.train(epochs=EPOCHS, lr=LR)
 
   #dataset.cap.release()
